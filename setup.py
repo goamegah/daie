@@ -2,7 +2,7 @@ from pathlib import Path
 from setuptools import setup, find_packages
 
 
-NAME = 'mds'
+NAME = 'mds.main'
 DESCRIPTION = 'Package for running the data pipeline for Modern Data Stack with Azure and Databricks'
 URL = ''
 AUTHOR = 'Godwin AMEGAH'
