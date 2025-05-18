@@ -1,0 +1,7 @@
+pytest
+pylint
+pyspark==3.5.2
+pytest-mock
+pytest-cov
+wheel
+mock
