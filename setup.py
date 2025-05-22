@@ -1,3 +1,5 @@
+"""setup.py"""
+
 from pathlib import Path
 from setuptools import setup, find_packages
 
@@ -8,22 +10,21 @@ URL = ''
 AUTHOR = 'Godwin AMEGAH'
 EMAIL = 'komlan.godwin.amegah@gmail.com'
 REQUIRES_PYTHON = '>=3.9'
+VERSION = '0.0.1'
 
 HERE = Path(__file__).parent
 REQUIRES_FILE = HERE / 'requirements.txt'
-REQUIRED = [i.strip() for i in open(REQUIRES_FILE) if not i.startswith('#')]
+REQUIRED = [i.strip() for i in open(REQUIRES_FILE, encoding='utf-8') if not i.startswith('#')]
 
-for line in open('mds/__init__.py'):
+for line in open('mds/__init__.py', encoding='utf-8'):
     line = line.strip()
     if '__version__' in line:
-        context = {}
-        exec(line, context)
-        VERSION = context['__version__']
+        VERSION = line.split('=')[1].strip().strip('\'"')
 try:
     with open(HERE / "README.md", encoding='utf-8') as f:
-        long_description = '\n' + f.read()
+        LONG_DESCRIPTION = '\n' + f.read()
 except FileNotFoundError:
-    long_description = DESCRIPTION
+    LONG_DESCRIPTION = DESCRIPTION
 
 
 setup(
@@ -31,7 +32,7 @@ setup(
     version=VERSION,
     description=DESCRIPTION,
     author_email=EMAIL,
-    long_description=long_description,
+    long_description=LONG_DESCRIPTION,
     long_description_content_type='text/markdown',
     author=AUTHOR,
     url=URL,

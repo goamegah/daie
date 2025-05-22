@@ -1,23 +1,32 @@
+"""main"""
+# mds/main.py
+
 import sys
+from ast import literal_eval
 from importlib import import_module
 from mds.utils.args_helper import parse_args
 
-job_param = "job"
-log_param = "log"
-is_unity_param = "is_unity"
+JOB_PARAM = "job"
+LOG_PARAM = "log"
+IS_UNITY_PARAM = "is_unity"
 
 def main() -> None:
+    """
+    Main function to execute the job specified in the command line arguments.
+    It imports the job module dynamically and calls its main function with the provided arguments.
+    """
+    # Parse command line arguments
     args_dict = parse_args(sys.argv[1:])
-    job = args_dict.pop(job_param)
-    _ = args_dict.get(is_unity_param, False)
+    job = args_dict.pop(JOB_PARAM)
+    _ = args_dict.get(IS_UNITY_PARAM, False)
     mod = import_module(job)
-    main = getattr(mod, "main")
-    log = False if log_param not in args_dict else eval(args_dict.pop(log_param))
+    fun = getattr(mod, "main")
+    log = False if LOG_PARAM not in args_dict else literal_eval(args_dict.pop(LOG_PARAM))
 
     # Execute job using the other passed arguments
     if not log:
         # some operation could not be logged in databricks log table
-        # for example the ddl creation job will fail if we log before creating the log table 
-        main(**args_dict)
+        # for example the ddl creation job will fail if we log before creating the log table
+        fun(**args_dict)
     else:
         pass

@@ -1,6 +1,6 @@
 pytest
 pylint
-pyspark==3.5.2
+pyspark
 pytest-mock
 pytest-cov
 wheel
