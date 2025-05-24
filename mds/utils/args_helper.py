@@ -1,4 +1,8 @@
-"""Gestionnaire de secrets pour Databricks."""
+""" Module pour la gestion des arguments de la ligne de commande.
+Ce module fournit des fonctions pour parser les arguments de la ligne de commande,
+fusionner des dictionnaires et convertir des chaînes en snake_case."""
+
+# mds/utils/args_helper.py
 
 from typing import List, Dict, Any
 

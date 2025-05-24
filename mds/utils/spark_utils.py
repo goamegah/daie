@@ -7,8 +7,8 @@ import logging
 import os
 from pyspark.sql import SparkSession
 from mds.definitions import (DATABRICKS_CONNECT_FILE, AZURE_STORAGE_FILE)
-from mds.utils.config import (
-    read_json,
+from mds.utils.config import read_json
+from mds.utils.secret_manager import (
     get_databricks_instance_secret_key,
     get_databricks_instance_scope_name,
     get_databricks_instance_id,
@@ -34,7 +34,7 @@ class SparkManager:
         self._dbutils = None
 
     @property
-    def get_spark_session(self) -> SparkSession:
+    def spark(self) -> SparkSession:
         """
         Retourne l'unique SparkSession partagée.
         Si la session n'existe pas, elle est créée.
@@ -44,14 +44,14 @@ class SparkManager:
         return self._spark
 
     @property
-    def get_dbutils(self):
+    def dbutils(self):
         from pyspark.dbutils import DBUtils #pylint: disable=no-name-in-module disable=import-error,import-outside-toplevel
         """
         Retourne l'unique DBUtils lié à la SparkSession.
         Si DBUtils n'existe pas, il est créé.
         """
         if self._dbutils is None:
-            self._dbutils = DBUtils(self.get_spark_session)
+            self._dbutils = DBUtils(self.spark)
         return self._dbutils
 
     def _init_session(self) -> SparkSession:
@@ -74,7 +74,7 @@ class SparkManager:
         try:
             env = get_databricks_env()
             instance_id = get_databricks_instance_id(env)
-            secret = self.get_dbutils.secrets.get(
+            secret = self.dbutils.secrets.get(
                 scope=get_databricks_instance_scope_name(env),
                 key=get_databricks_instance_secret_key(env)
             )
@@ -110,14 +110,14 @@ def get_spark_session() -> SparkSession:
     """
     Retourne l'unique SparkSession partagée.
     """
-    return _spark_manager.get_spark_session
+    return _spark_manager.spark
 
 
 def get_dbutils():
     """
     Retourne l'unique DBUtils lié à la SparkSession.
     """
-    return _spark_manager.get_dbutils
+    return _spark_manager.dbutils
 
 
 def scope_exists(scope_name: str, key: str) -> bool:
