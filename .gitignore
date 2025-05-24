@@ -169,3 +169,9 @@ cython_debug/
 
 # PyPI configuration file
 .pypirc
+
+# local config
+.databricks_connect.json
+.databricks_instances.json
+.azure_storage.json
+setup.py.txt

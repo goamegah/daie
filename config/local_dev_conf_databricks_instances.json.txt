@@ -1,0 +1,17 @@
+{
+    "dev" : {
+        "instance_id" : "<databricks-instance-id>",
+        "secret_key" : "",
+        "scope_name" : "<databricks-scope-name>"
+    },
+    "prod" : {
+        "instance_id" : "<databricks-instance-id>",
+        "secret_key" : "",
+        "scope_name" : "<databricks-scope-name>"
+    },
+    "test" : {
+        "instance_id" : "<databricks-instance-id>",
+        "secret_key" : "",
+        "scope_name" : "<databricks-scope-name>"
+    }
+}
