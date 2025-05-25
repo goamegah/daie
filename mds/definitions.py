@@ -7,7 +7,7 @@ from pathlib import Path
 
 ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
 
-# Répertoire parent/config contenant les JSON de config
+# Define the configuration directory and file paths
 CONFIG_DIR = os.path.join(Path(ROOT_DIR).parent.absolute(), 'config')
 DATABRICKS_INSTANCES_FILE = os.path.join(CONFIG_DIR, '.local_dev_conf_databricks_instances.json')
 DATABRICKS_CONNECT_FILE = os.path.join(CONFIG_DIR, '.local_dev_conf_databricks_connect.json')
