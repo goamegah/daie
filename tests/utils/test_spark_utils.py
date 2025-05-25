@@ -18,7 +18,6 @@ def reset_spark_manager():
         su._spark_manager._spark.stop()
         su._spark_manager._spark = None
 
-
 def test_get_spark_session_returns_singleton():
     # 1ère récupération
     spark1: SparkSession = su.get_spark_session()
@@ -28,7 +27,6 @@ def test_get_spark_session_returns_singleton():
     # On peut créer un DataFrame local sans erreur
     df = spark1.createDataFrame([(1, "a")], ["id", "val"])
     assert df.count() == 1
-
 
 def test_scope_exists_true(monkeypatch):
     """
@@ -40,7 +38,6 @@ def test_scope_exists_true(monkeypatch):
 
     assert su.scope_exists("my_scope", "my_key") is True
     fake_dbutils.secrets.get.assert_called_once_with(scope="my_scope", key="my_key")
-
 
 def test_scope_exists_false(monkeypatch):
     """

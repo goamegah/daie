@@ -1,6 +1,6 @@
-"""Gestionnaire de secrets pour Databricks."""
+"""Gestionnaire de config pour Databricks et Azure."""
 
-# mds/utils/config.py
+# mds/utils/config_utils.py
 import json
 import logging
 from pathlib import Path

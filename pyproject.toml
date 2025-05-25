@@ -30,5 +30,9 @@ where = ["."]
 include = ["mds"]
 exclude = ["*tests*", "*tests"]
 
+[tool.pytest.ini_options]
+python_files = ["test_*.py", "*_test.py"]
+testpaths = ["tests"]
+
 [tool.setuptools.package-data]
 mds = ["py.typed"]
