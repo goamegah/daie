@@ -1,4 +1,4 @@
-"""Gestionnaire de config pour Databricks et Azure."""
+"""Config manager for Databricks and Azure."""
 
 # mds/utils/config_utils.py
 import json
@@ -8,28 +8,27 @@ from typing import Dict, Any
 from typing import Final
 from mds.definitions import DATABRICKS_INSTANCES_FILE, AZURE_STORAGE_FILE
 
-
 ENVIRONMENTS: Final[set[str]] = {'dev', 'test', 'prod'}
 
 logger = logging.getLogger(__name__)
 
 def read_json(path: Path) -> Dict[str, Any]:
-    """Charge un JSON et renvoie un dictionnaire."""
+    """Load a JSON file and return a dictionary."""
     with path.open('r') as f:
         parsed_json = json.load(f)
     return parsed_json
 
 def validate_env(env: str) -> None:
     """
-    Valide l'environnement donné.
-    Lève une ValueError si l'environnement n'est pas valide.
+    Validate the given environment.
+    Raises a ValueError if the environment is not valid.
     """
     if env not in ENVIRONMENTS:
-        raise ValueError(f"Environnement invalide '{env}'. Choisir parmi {ENVIRONMENTS}.")
+        raise ValueError(f"Invalid environment '{env}'. Choose from {ENVIRONMENTS}.")
 
 def read_databricks_instance_secret_key_config(env: str) -> str:
     """
-    Récupère la clé secrète pour l'env donné dans .databricks_instances.json.
+    Get the secret key for the given environment from .databricks_instances.json.
     """
     validate_env(env)
     data = read_json(DATABRICKS_INSTANCES_FILE)
@@ -37,7 +36,7 @@ def read_databricks_instance_secret_key_config(env: str) -> str:
 
 def read_databricks_instance_scope_name_config(env: str) -> str:
     """
-    Récupère la clé secrète pour l'env donné dans .databricks_instances.json.
+    Get the scope name for the given environment from .databricks_instances.json.
     """
     validate_env(env)
     data = read_json(DATABRICKS_INSTANCES_FILE)
@@ -45,7 +44,7 @@ def read_databricks_instance_scope_name_config(env: str) -> str:
 
 def read_databricks_instance_id_config(env: str) -> str:
     """
-    Récupère l'ID d'instance Databricks pour l'env donné.
+    Get the Databricks instance ID for the given environment.
     """
     validate_env(env)
     data = read_json(DATABRICKS_INSTANCES_FILE)
@@ -53,14 +52,14 @@ def read_databricks_instance_id_config(env: str) -> str:
 
 def read_azure_tenant_id_config() -> str:
     """
-    Récupère l'ID du locataire Azure à partir du fichier de configuration Azure Storage.
+    Get the Azure tenant ID from the Azure Storage config file.
     """
     data = read_json(AZURE_STORAGE_FILE)
     return data.get('tenant_id', '')
 
 def read_azure_storage_account_config() -> str:
     """
-    Récupère le nom du compte de stockage Azure à partir du fichier de configuration Azure Storage.
+    Get the Azure storage account name from the Azure Storage config file.
     """
     data = read_json(AZURE_STORAGE_FILE)
     return data.get('storage_account', '')

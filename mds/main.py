@@ -1,4 +1,9 @@
-"""main"""
+"""Main entry point for the MDS job execution.
+This module is responsible for parsing command line arguments,
+importing the specified job module, and executing its main function.
+It handles the dynamic import of job modules and passes the necessary arguments
+to the job's main function.
+"""
 # mds/main.py
 
 import sys

@@ -13,7 +13,6 @@ This module is part of the MDS (Modular Data Science) project."""
 
 # mds/utils/spark_utils.py
 
-
 import logging
 import os
 from pyspark.sql import SparkSession
@@ -38,7 +37,7 @@ PROD = 'prod'
 
 
 class SparkManager:
-    """Gère la création/config de la SparkSession + Azure OAuth."""
+    """Handles creation/configuration of SparkSession + Azure OAuth."""
 
     def __init__(self) -> None:
         self._spark: SparkSession | None = None
@@ -47,8 +46,8 @@ class SparkManager:
     @property
     def spark(self) -> SparkSession:
         """
-        Retourne l'unique SparkSession partagée.
-        Si la session n'existe pas, elle est créée.
+        Returns the unique shared SparkSession.
+        If the session does not exist, it is created.
         """
         if self._spark is None:
             self._spark = self._init_session()
@@ -57,8 +56,8 @@ class SparkManager:
     @property
     def dbutils(self):
         """
-        Retourne l'unique DBUtils lié à la SparkSession.
-        Si DBUtils n'existe pas, il est créé.
+        Returns the unique DBUtils linked to the SparkSession.
+        If DBUtils does not exist, it is created.
         """
         from pyspark.dbutils import DBUtils #pylint: disable=no-name-in-module disable=import-error,import-outside-toplevel
         if self._dbutils is None:
@@ -71,10 +70,10 @@ class SparkManager:
             from databricks.sdk.core import Config #pylint: disable=import-error,disable=no-name-in-module,disable=import-outside-toplevel
 
             cfg = Config(**read_json(DATABRICKS_CONNECT_FILE))
-            logger.info('Mode Databricks Connect activé.')
+            logger.info('Databricks Connect mode enabled.')
             spark = DatabricksSession.builder.sdkConfig(cfg).getOrCreate()
         else:
-            logger.info('Mode Spark standard.')
+            logger.info('Standard Spark mode.')
             spark = SparkSession.builder.appName("mds").getOrCreate()
         self._configure_azure_storage_account(spark)
         return spark
@@ -112,40 +111,40 @@ class SparkManager:
                 raise e
 
 
-# ───── Singleton et helpers ─────
+# ───── Singleton and helpers ─────
 _spark_manager = SparkManager()
 
 
 def get_spark_session() -> SparkSession:
     """
-    Retourne l'unique SparkSession partagée.
+    Returns the unique shared SparkSession.
     """
     return _spark_manager.spark
 
 
 def get_dbutils():
     """
-    Retourne l'unique DBUtils lié à la SparkSession.
+    Returns the unique DBUtils linked to the SparkSession.
     """
     return _spark_manager.dbutils
 
 
 def scope_exists(scope_name: str, key: str) -> bool:
     """
-    Vérifie si un scope et une clé existent dans Databricks.
+    Checks if a scope and key exist in Databricks.
     """
     try:
         dbutils = get_dbutils()
         dbutils.secrets.get(scope=scope_name, key=key)
         return True
     except Exception as e: # pylint: disable=broad-except
-        logger.error("Erreur lors de la vérification du scope %s et de la clé %s : %s", scope_name, key, e)
+        logger.error("Error checking scope %s and key %s: %s", scope_name, key, e)
         return False
 
 def get_databricks_env() -> str:
     """
-    Retourne l'environnement Databricks actuel. (dev, test, prod)
-    Si l'environnement n'est pas défini, retourne 'dev' par défaut.
+    Returns the current Databricks environment. (dev, test, prod)
+    If the environment is not defined, returns 'dev' by default.
     """
     if scope_exists(read_databricks_instance_scope_name_config(DEV), read_databricks_instance_secret_key_config(DEV)):
         return DEV
@@ -153,4 +152,4 @@ def get_databricks_env() -> str:
         return TEST
     if scope_exists(read_databricks_instance_scope_name_config(PROD), read_databricks_instance_secret_key_config(PROD)):
         return PROD
-    return DEV  # Valeur par défaut si aucun scope n'est trouvé
+    return DEV  # Default value if no scope is found

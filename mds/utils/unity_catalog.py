@@ -1,4 +1,4 @@
-""" Unity catalog utils"""
+""" Unity catalog utils """
 
 # mds/utils/unity_catalog.py
 from typing import Optional
@@ -14,17 +14,17 @@ def create_unity_catalog_volume(
     identifier: Optional[str] = None,
 ) -> str:
     """
-    Crée un volume Unity Catalog Databricks en réutilisant la SparkSession singleton.
-    
+    Creates a Unity Catalog Databricks volume using the SparkSession singleton.
+
     Args:
-        catalog:  Nom du catalogue.
-        schema:   Nom du schéma.
-        volume:   Nom du volume.
-        subfolder: Sous-dossier à créer (facultatif).
-        identifier: 'catalog.schema.volume' (prioritaire si fourni).
+        catalog:  Catalog name.
+        schema:   Schema name.
+        volume:   Volume name.
+        subfolder: Subfolder to create (optional).
+        identifier: 'catalog.schema.volume' (takes precedence if provided).
 
     Returns:
-        str: Chemin du volume (avec sous-dossier si précisé).
+        str: Path to the volume (with subfolder if specified).
     """
     spark = get_spark_session()
 

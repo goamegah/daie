@@ -1,6 +1,6 @@
-""" Module pour la gestion des arguments de la ligne de commande.
-Ce module fournit des fonctions pour parser les arguments de la ligne de commande,
-fusionner des dictionnaires et convertir des chaînes en snake_case."""
+""" Module for command-line argument management.
+This module provides functions to parse command-line arguments,
+merge dictionaries, and convert strings to snake_case."""
 
 # mds/utils/args_helper.py
 
@@ -8,11 +8,11 @@ from typing import List, Dict, Any
 
 def parse_args(args: List[str]) -> Dict[str, str]:
     """
-    Parse les arguments de la ligne de commande.
+    Parse command-line arguments.
     Args:
-        args (List[str]): Liste d'arguments de la ligne de commande.
+        args (List[str]): List of command-line arguments.
     Returns:
-        Dict[str, str]: Dictionnaire des arguments parsés.
+        Dict[str, str]: Dictionary of parsed arguments.
     """
     parsed_args = dict(arg.replace("--","").split('=') for arg in args)
     if 'is_unity' in parsed_args:
@@ -24,21 +24,21 @@ def parse_args(args: List[str]) -> Dict[str, str]:
 
 def merge_dicts(dict1: Dict[Any, Any], dict2: Dict[Any, Any]) -> Dict[Any, Any]:
     """
-    Merge deux dictionnaires.
+    Merge two dictionaries.
     Args:
-        dict1 (Dict[Any, Any]): Premier dictionnaire.
-        dict2 (Dict[Any, Any]): Deuxième dictionnaire.
+        dict1 (Dict[Any, Any]): First dictionary.
+        dict2 (Dict[Any, Any]): Second dictionary.
     Returns:
-        Dict[Any, Any]: Dictionnaire fusionné.
+        Dict[Any, Any]: Merged dictionary.
     """
     return {**dict1, **dict2}
 
 def snake_case(value:str)->str:
     """
-    Convertit une chaîne en snake_case.
+    Convert a string to snake_case.
     Args:
-        value (str): Chaîne à convertir.
+        value (str): String to convert.
     Returns:
-        str: Chaîne convertie en snake_case.
+        str: Converted string in snake_case.
     """
     return value.lower().replace(" ", "_").replace("/", "_").replace(".", "_").replace("\\", "_").replace("-", "_")

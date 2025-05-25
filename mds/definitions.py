@@ -1,4 +1,6 @@
-""" def """
+""" This module defines the paths to configuration files used in the application.
+It sets up the directory structure for configuration files and provides paths to specific JSON files
+used for Databricks instances and Azure storage configurations."""
 
 import os
 from pathlib import Path

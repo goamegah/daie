@@ -6,31 +6,31 @@ from unittest.mock import MagicMock
 import mds.utils.spark_utils as SU
 from pyspark.sql import SparkSession
 
-# Fixture pour réinitialiser le singleton avant chaque test
+# Fixture to reset the singleton before each test
 @pytest.fixture(autouse=True)
 def reset_spark_manager():
-    # Réinitialise la SparkSession et DBUtils internes
+    # Reset the internal SparkSession and DBUtils
     SU._spark_manager._spark = None
     SU._spark_manager._dbutils = None
     yield
-    # Détruit la session Spark si elle existe
+    # Destroy the Spark session if it exists
     if SU._spark_manager._spark is not None:
         SU._spark_manager._spark.stop()
         SU._spark_manager._spark = None
 
 def test_get_spark_session_returns_singleton():
-    # 1ère récupération
+    # 1st retrieval
     spark1: SparkSession = SU.get_spark_session()
-    # 2ème récupération – même instance !
+    # 2nd retrieval – same instance!
     spark2: SparkSession = SU.get_spark_session()
     assert spark1 is spark2
-    # On peut créer un DataFrame local sans erreur
+    # Can create a local DataFrame without error
     df = spark1.createDataFrame([(1, "a")], ["id", "val"])
     assert df.count() == 1
 
 def test_scope_exists_true(monkeypatch):
     """
-    Teste scope_exists() → True si secrets.get() ne lève pas une exception.
+    Tests scope_exists() → True if secrets.get() does not raise an exception.
     """
     fake_dbutils = MagicMock()
     fake_dbutils.secrets.get.return_value = "secret"
@@ -41,7 +41,7 @@ def test_scope_exists_true(monkeypatch):
 
 def test_scope_exists_false(monkeypatch):
     """
-    Teste scope_exists() → False si secrets.get() lève une exception.
+    Tests scope_exists() → False if secrets.get() raises an exception.
     """
     fake_dbutils = MagicMock()
     fake_dbutils.secrets.get.side_effect = Exception("not found")
