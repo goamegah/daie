@@ -1,22 +1,16 @@
 # tests/utils/test_spark_utils.py
-
-import pytest
 from unittest.mock import MagicMock
-
-import mds.utils.spark_utils as SU
+import pytest
 from pyspark.sql import SparkSession
+import mds.utils.spark_utils as SU
+from mds.utils.spark_utils import _reset_spark_manager
 
 # Fixture to reset the singleton before each test
 @pytest.fixture(autouse=True)
 def reset_spark_manager():
-    # Reset the internal SparkSession and DBUtils
-    SU._spark_manager._spark = None
-    SU._spark_manager._dbutils = None
+    _reset_spark_manager()
     yield
-    # Destroy the Spark session if it exists
-    if SU._spark_manager._spark is not None:
-        SU._spark_manager._spark.stop()
-        SU._spark_manager._spark = None
+    _reset_spark_manager()
 
 def test_get_spark_session_returns_singleton():
     # 1st retrieval
@@ -54,4 +48,3 @@ if __name__ == "__main__":
     # debug section
     print("Running tests...")
     test_get_spark_session_returns_singleton()
-

@@ -16,4 +16,3 @@ AZURE_STORAGE_FILE = os.path.join(CONFIG_DIR, '.local_dev_conf_azure_storage.jso
 if __name__ == "__main__":
     print(f"Configuration directory: {CONFIG_DIR}")
     print(f"DATABRICKS_INSTANCES_FILE: {DATABRICKS_INSTANCES_FILE}")
-

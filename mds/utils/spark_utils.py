@@ -43,6 +43,11 @@ class SparkManager:
         self._spark: SparkSession | None = None
         self._dbutils = None
 
+    def reset(self) -> None:
+        """Reset SparkSession and DBUtils (for testing only)."""
+        self._spark = None
+        self._dbutils = None
+
     @property
     def spark(self) -> SparkSession:
         """
@@ -127,6 +132,11 @@ def get_dbutils():
     Returns the unique DBUtils linked to the SparkSession.
     """
     return _spark_manager.dbutils
+
+
+def _reset_spark_manager():
+    _spark_manager.reset()
+
 
 
 def scope_exists(scope_name: str, key: str) -> bool:

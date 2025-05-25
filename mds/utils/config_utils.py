@@ -56,10 +56,7 @@ def get_azure_tenant_id_from_config_file() -> str:
     Returns an empty string if the tenant ID is not found.
     """
     if not Path(AZURE_STORAGE_FILE).exists():
-        logger.warning(f"Azure Storage config file '{AZURE_STORAGE_FILE}' does not exist.")
-        return ""
-    if not Path(AZURE_STORAGE_FILE).is_file():
-        logger.warning(f"Azure Storage config file '{AZURE_STORAGE_FILE}' is not a file.")
+        logger.warning("Azure Storage config file '%s' does not exist.", AZURE_STORAGE_FILE)
         return ""
     data = load_json(AZURE_STORAGE_FILE)
     tenant_id = data.get("tenant_id")
