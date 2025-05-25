@@ -18,17 +18,17 @@ import os
 from pyspark.sql import SparkSession
 from mds.definitions import (DATABRICKS_CONNECT_FILE, AZURE_STORAGE_FILE)
 from mds.utils.config_utils import (
-    read_json,
-    read_databricks_instance_secret_key_config,
-    read_databricks_instance_scope_name_config,
-    read_databricks_instance_id_config,
-    read_azure_tenant_id_config,
-    read_azure_storage_account_config
+    load_json,
+    get_databricks_secret_key_from_config_file,
+    get_databricks_scope_name_from_config_file,
+    get_databricks_instance_id_from_config_file,
+    get_azure_tenant_id_from_config_file,
+    get_azure_storage_account_from_config_file
 )
 
 logger = logging.getLogger(__name__)
-TENANT_ID = read_azure_tenant_id_config() if os.path.exists(AZURE_STORAGE_FILE) else ''
-STORAGE_ACCOUNT = read_azure_storage_account_config() if os.path.exists(AZURE_STORAGE_FILE) else ''
+TENANT_ID = get_azure_tenant_id_from_config_file() if os.path.exists(AZURE_STORAGE_FILE) else ''
+STORAGE_ACCOUNT = get_azure_storage_account_from_config_file() if os.path.exists(AZURE_STORAGE_FILE) else ''
 OAUTH_ENDPOINT = f"https://login.microsoftonline.com/{TENANT_ID}/oauth2/token"
 
 DEV = 'dev'
@@ -69,7 +69,7 @@ class SparkManager:
             from databricks.connect import DatabricksSession #pylint: disable=import-error,disable=no-name-in-module,disable=import-outside-toplevel
             from databricks.sdk.core import Config #pylint: disable=import-error,disable=no-name-in-module,disable=import-outside-toplevel
 
-            cfg = Config(**read_json(DATABRICKS_CONNECT_FILE))
+            cfg = Config(**load_json(DATABRICKS_CONNECT_FILE))
             logger.info('Databricks Connect mode enabled.')
             spark = DatabricksSession.builder.sdkConfig(cfg).getOrCreate()
         else:
@@ -82,10 +82,10 @@ class SparkManager:
         try:
             _ = self.dbutils  #pylint: disable=redefined-outer-name
             env = get_databricks_env()
-            instance_id = read_databricks_instance_id_config(env)
+            instance_id = get_databricks_instance_id_from_config_file(env)
             secret = self.dbutils.secrets.get(
-                scope=read_databricks_instance_scope_name_config(env),
-                key=read_databricks_instance_secret_key_config(env)
+                scope=get_databricks_scope_name_from_config_file(env),
+                key=get_databricks_secret_key_from_config_file(env)
             )
 
             auth_configs = {
@@ -146,10 +146,10 @@ def get_databricks_env() -> str:
     Returns the current Databricks environment. (dev, test, prod)
     If the environment is not defined, returns 'dev' by default.
     """
-    if scope_exists(read_databricks_instance_scope_name_config(DEV), read_databricks_instance_secret_key_config(DEV)):
+    if scope_exists(get_databricks_scope_name_from_config_file(DEV), get_databricks_secret_key_from_config_file(DEV)):
         return DEV
-    if scope_exists(read_databricks_instance_scope_name_config(TEST), read_databricks_instance_secret_key_config(TEST)):
+    if scope_exists(get_databricks_scope_name_from_config_file(TEST), get_databricks_secret_key_from_config_file(TEST)):
         return TEST
-    if scope_exists(read_databricks_instance_scope_name_config(PROD), read_databricks_instance_secret_key_config(PROD)):
+    if scope_exists(get_databricks_scope_name_from_config_file(PROD), get_databricks_secret_key_from_config_file(PROD)):
         return PROD
     return DEV  # Default value if no scope is found

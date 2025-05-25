@@ -12,7 +12,7 @@ ENVIRONMENTS: Final[set[str]] = {'dev', 'test', 'prod'}
 
 logger = logging.getLogger(__name__)
 
-def read_json(path: Path) -> Dict[str, Any]:
+def load_json(path: Path) -> Dict[str, Any]:
     """Load a JSON file and return a dictionary."""
     with path.open('r') as f:
         parsed_json = json.load(f)
@@ -26,40 +26,50 @@ def validate_env(env: str) -> None:
     if env not in ENVIRONMENTS:
         raise ValueError(f"Invalid environment '{env}'. Choose from {ENVIRONMENTS}.")
 
-def read_databricks_instance_secret_key_config(env: str) -> str:
+def get_databricks_secret_key_from_config_file(env: str) -> str:
     """
     Get the secret key for the given environment from .databricks_instances.json.
     """
     validate_env(env)
-    data = read_json(DATABRICKS_INSTANCES_FILE)
+    data = load_json(DATABRICKS_INSTANCES_FILE)
     return data[env]['secret_key']
 
-def read_databricks_instance_scope_name_config(env: str) -> str:
+def get_databricks_scope_name_from_config_file(env: str) -> str:
     """
     Get the scope name for the given environment from .databricks_instances.json.
     """
     validate_env(env)
-    data = read_json(DATABRICKS_INSTANCES_FILE)
+    data = load_json(DATABRICKS_INSTANCES_FILE)
     return data[env]['scope_name']
 
-def read_databricks_instance_id_config(env: str) -> str:
+def get_databricks_instance_id_from_config_file(env: str) -> str:
     """
     Get the Databricks instance ID for the given environment.
     """
     validate_env(env)
-    data = read_json(DATABRICKS_INSTANCES_FILE)
+    data = load_json(DATABRICKS_INSTANCES_FILE)
     return data[env]['databricks_instance_id']
 
-def read_azure_tenant_id_config() -> str:
+def get_azure_tenant_id_from_config_file() -> str:
     """
     Get the Azure tenant ID from the Azure Storage config file.
+    Returns an empty string if the tenant ID is not found.
     """
-    data = read_json(AZURE_STORAGE_FILE)
-    return data.get('tenant_id', '')
+    if not Path(AZURE_STORAGE_FILE).exists():
+        logger.warning(f"Azure Storage config file '{AZURE_STORAGE_FILE}' does not exist.")
+        return ""
+    if not Path(AZURE_STORAGE_FILE).is_file():
+        logger.warning(f"Azure Storage config file '{AZURE_STORAGE_FILE}' is not a file.")
+        return ""
+    data = load_json(AZURE_STORAGE_FILE)
+    tenant_id = data.get("tenant_id")
+    if not tenant_id:
+        logger.warning("No 'tenant_id' found in Azure config.")
+    return tenant_id or ""
 
-def read_azure_storage_account_config() -> str:
+def get_azure_storage_account_from_config_file() -> str:
     """
     Get the Azure storage account name from the Azure Storage config file.
     """
-    data = read_json(AZURE_STORAGE_FILE)
+    data = load_json(AZURE_STORAGE_FILE)
     return data.get('storage_account', '')
