@@ -1,4 +1,15 @@
-"""spark manager"""
+"""spark utils module.
+This module provides utilities for managing Spark sessions and configurations,
+including integration with Azure OAuth and Databricks Connect.
+It includes a singleton SparkManager class that initializes and manages
+a shared SparkSession and DBUtils instance.
+It also provides helper functions to access the Spark session and DBUtils,
+check the existence of Databricks scopes and keys, and determine the current
+Databricks environment (dev, test, prod).
+It is designed to be used in a Databricks environment or with Databricks Connect.
+It handles the configuration of Azure storage accounts and OAuth authentication
+for accessing Azure Data Lake Storage (ADLS) Gen2.
+This module is part of the MDS (Modular Data Science) project."""
 
 # mds/utils/spark_utils.py
 
@@ -7,18 +18,18 @@ import logging
 import os
 from pyspark.sql import SparkSession
 from mds.definitions import (DATABRICKS_CONNECT_FILE, AZURE_STORAGE_FILE)
-from mds.utils.config import read_json
-from mds.utils.secret_manager import (
-    get_databricks_instance_secret_key,
-    get_databricks_instance_scope_name,
-    get_databricks_instance_id,
-    get_azure_tenant_id,
-    get_azure_storage_account
+from mds.utils.config_utils import (
+    read_json,
+    read_databricks_instance_secret_key_config,
+    read_databricks_instance_scope_name_config,
+    read_databricks_instance_id_config,
+    read_azure_tenant_id_config,
+    read_azure_storage_account_config
 )
 
 logger = logging.getLogger(__name__)
-TENANT_ID = get_azure_tenant_id() if os.path.exists(AZURE_STORAGE_FILE) else ''
-STORAGE_ACCOUNT = get_azure_storage_account() if os.path.exists(AZURE_STORAGE_FILE) else ''
+TENANT_ID = read_azure_tenant_id_config() if os.path.exists(AZURE_STORAGE_FILE) else ''
+STORAGE_ACCOUNT = read_azure_storage_account_config() if os.path.exists(AZURE_STORAGE_FILE) else ''
 OAUTH_ENDPOINT = f"https://login.microsoftonline.com/{TENANT_ID}/oauth2/token"
 
 DEV = 'dev'
@@ -45,11 +56,11 @@ class SparkManager:
 
     @property
     def dbutils(self):
-        from pyspark.dbutils import DBUtils #pylint: disable=no-name-in-module disable=import-error,import-outside-toplevel
         """
         Retourne l'unique DBUtils lié à la SparkSession.
         Si DBUtils n'existe pas, il est créé.
         """
+        from pyspark.dbutils import DBUtils #pylint: disable=no-name-in-module disable=import-error,import-outside-toplevel
         if self._dbutils is None:
             self._dbutils = DBUtils(self.spark)
         return self._dbutils
@@ -62,21 +73,20 @@ class SparkManager:
             cfg = Config(**read_json(DATABRICKS_CONNECT_FILE))
             logger.info('Mode Databricks Connect activé.')
             spark = DatabricksSession.builder.sdkConfig(cfg).getOrCreate()
-            self._configure_azure(spark)
-            return spark
-
-        logger.info('Mode Spark standard.')
-        spark = SparkSession.builder.appName("mds").getOrCreate()
-        self._configure_azure(spark)
+        else:
+            logger.info('Mode Spark standard.')
+            spark = SparkSession.builder.appName("mds").getOrCreate()
+        self._configure_azure_storage_account(spark)
         return spark
 
-    def _configure_azure(self, spark: SparkSession) -> None:
+    def _configure_azure_storage_account(self, spark: SparkSession) -> None:
         try:
+            _ = self.dbutils  #pylint: disable=redefined-outer-name
             env = get_databricks_env()
-            instance_id = get_databricks_instance_id(env)
+            instance_id = read_databricks_instance_id_config(env)
             secret = self.dbutils.secrets.get(
-                scope=get_databricks_instance_scope_name(env),
-                key=get_databricks_instance_secret_key(env)
+                scope=read_databricks_instance_scope_name_config(env),
+                key=read_databricks_instance_secret_key_config(env)
             )
 
             auth_configs = {
@@ -128,20 +138,19 @@ def scope_exists(scope_name: str, key: str) -> bool:
         dbutils = get_dbutils()
         dbutils.secrets.get(scope=scope_name, key=key)
         return True
-    except Exception as e:
+    except Exception as e: # pylint: disable=broad-except
         logger.error("Erreur lors de la vérification du scope %s et de la clé %s : %s", scope_name, key, e)
         return False
-    
+
 def get_databricks_env() -> str:
     """
     Retourne l'environnement Databricks actuel. (dev, test, prod)
     Si l'environnement n'est pas défini, retourne 'dev' par défaut.
     """
-    if scope_exists(get_databricks_instance_scope_name(DEV), get_databricks_instance_secret_key(DEV)):
+    if scope_exists(read_databricks_instance_scope_name_config(DEV), read_databricks_instance_secret_key_config(DEV)):
         return DEV
-    if scope_exists(get_databricks_instance_scope_name(TEST), get_databricks_instance_secret_key(TEST)):
+    if scope_exists(read_databricks_instance_scope_name_config(TEST), read_databricks_instance_secret_key_config(TEST)):
         return TEST
-    if scope_exists(get_databricks_instance_scope_name(PROD), get_databricks_instance_secret_key(PROD)):
+    if scope_exists(read_databricks_instance_scope_name_config(PROD), read_databricks_instance_secret_key_config(PROD)):
         return PROD
     return DEV  # Valeur par défaut si aucun scope n'est trouvé
-    

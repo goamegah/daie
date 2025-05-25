@@ -12,3 +12,4 @@ DATABRICKS_CONNECT_FILE = os.path.join(CONFIG_DIR, '.local_dev_conf_databricks_c
 AZURE_STORAGE_FILE = os.path.join(CONFIG_DIR, '.local_dev_conf_azure_storage.json')
 
 print(f"Configuration directory: {CONFIG_DIR}")
+print(f"DATABRICKS_INSTANCES_FILE: {DATABRICKS_INSTANCES_FILE}")
