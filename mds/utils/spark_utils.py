@@ -134,7 +134,7 @@ def get_dbutils():
     return _spark_manager.dbutils
 
 
-def _reset_spark_manager():
+def reset_spark_manager():
     _spark_manager.reset()
 
 
