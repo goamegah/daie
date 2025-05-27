@@ -16,8 +16,8 @@ This module is part of the MDS (Modular Data Science) project."""
 import logging
 import os
 from pyspark.sql import SparkSession
-from src.definitions import (DATABRICKS_CONNECT_FILE, AZURE_STORAGE_FILE)
-from src.utils.config_utils import (
+from mds.definitions import (DATABRICKS_CONNECT_FILE, AZURE_STORAGE_FILE)
+from mds.utils.config_utils import (
     load_json,
     get_databricks_secret_key_from_config_file,
     get_databricks_scope_name_from_config_file,

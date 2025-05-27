@@ -8,9 +8,7 @@ version = "0.0.1"
 description = "Package for running the data pipeline for Modern Data Stack with Azure and Databricks"
 readme = "README.md"
 requires-python = ">=3.11"
-authors = [
-    {name = "Godwin AMEGAH", email = "komlan.godwin.amegah@gmail.com"}
-]
+authors = [{name = "Godwin AMEGAH", email = "komlan.godwin.amegah@gmail.com"}]
 dependencies = [
     "pyyaml",
     "pandas",
@@ -22,13 +20,28 @@ dependencies = [
     "Jinja2"
 ]
 
+[project.optional-dependencies]
+dev = [
+    "databricks-connect"
+]
+
+test = [
+    "pytest",
+    "pylint",
+    "pyspark",
+    "pytest-mock",
+    "pytest-cov",
+    "wheel",
+    "mock"
+]
+
 [project.scripts]
-mds = "mds:main"
+mds = "mds.main:main"                   # entry point for the command line interface
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["mds"]
-exclude = ["*tests*", "*tests"]
+include = ["mds", "mds.*"]              # include the mds package and its subpackages
+exclude = ["tests"]                     # exclude the tests directory
 
 [tool.pytest.ini_options]
 python_files = ["test_*.py", "*_test.py"]
