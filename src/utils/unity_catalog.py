@@ -2,7 +2,7 @@
 
 # mds/utils/unity_catalog.py
 from typing import Optional
-from mds.utils.spark_utils import get_spark_session
+from src.utils.spark_utils import get_spark_session
 
 __all__ = ['create_unity_catalog_volume']
 
