@@ -6,7 +6,7 @@ import logging
 from pathlib import Path
 from typing import Dict, Any
 from typing import Final
-from mds.definitions import DATABRICKS_INSTANCES_FILE, AZURE_STORAGE_FILE
+from ade.definitions import DATABRICKS_INSTANCES_FILE, AZURE_STORAGE_FILE
 
 ENVIRONMENTS: Final[set[str]] = {'dev', 'test', 'prod'}
 

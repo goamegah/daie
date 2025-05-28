@@ -9,7 +9,7 @@ to the job's main function.
 import sys
 from ast import literal_eval
 from importlib import import_module
-from mds.utils.args_helper import parse_args
+from ade.utils.args_helper import parse_args
 
 JOB_PARAM = "job"
 LOG_PARAM = "log"
