@@ -3,7 +3,7 @@ requires = ["setuptools>=64", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "mds"
+name = "mds"                          # Nom du package Python
 version = "0.0.1"
 description = "Package for running the data pipeline for Modern Data Stack with Azure and Databricks"
 readme = "README.md"
@@ -22,11 +22,11 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = [
-    "databricks-connect"
+    "databricks-connect"  # Dépendance pour le développement
 ]
 
 test = [
-    "pytest",
+    "pytest",            # Dépendances pour les tests
     "pylint",
     "pyspark",
     "pytest-mock",
@@ -36,12 +36,11 @@ test = [
 ]
 
 [project.scripts]
-mds = "mds.main:main"                   # entry point for the command line interface
+mds = "mds.main:main"                   # Point d'entrée : commande "mds" lance mds.main.main()
 
 [tool.setuptools.packages.find]
-where = ["."]
-include = ["mds", "mds.*"]              # include the mds package and its subpackages
-exclude = ["tests"]                     # exclude the tests directory
+where = ["src"]
+include = ["mds", "mds.*"]              # Recherche le package "mds" dans src
 
 [tool.pytest.ini_options]
 python_files = ["test_*.py", "*_test.py"]
