@@ -3,7 +3,7 @@
 from pathlib import Path
 import json
 import pytest
-from mds.utils import config_utils as cu
+from ade.utils import config_utils as cu
 
 @pytest.fixture
 def databricks_config_path(tmp_path: Path):

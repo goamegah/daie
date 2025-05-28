@@ -2,7 +2,7 @@
 This module provides functions to parse command-line arguments,
 merge dictionaries, and convert strings to snake_case."""
 
-# mds/utils/args_helper.py
+# ade/utils/args_helper.py
 
 from typing import List, Dict, Any
 

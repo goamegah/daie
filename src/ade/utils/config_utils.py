@@ -1,6 +1,6 @@
 """Config manager for Databricks and Azure."""
 
-# mds/utils/config_utils.py
+# ade/utils/config_utils.py
 import json
 import logging
 from pathlib import Path

@@ -3,7 +3,7 @@ requires = ["setuptools>=64", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "mds"                          # Nom du package Python
+name = "ade"                     
 version = "0.0.1"
 description = "Package for running the data pipeline for Modern Data Stack with Azure and Databricks"
 readme = "README.md"
@@ -22,11 +22,11 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = [
-    "databricks-connect"  # Dépendance pour le développement
+    "databricks-connect"
 ]
 
 test = [
-    "pytest",            # Dépendances pour les tests
+    "pytest",
     "pylint",
     "pyspark",
     "pytest-mock",
@@ -36,15 +36,15 @@ test = [
 ]
 
 [project.scripts]
-mds = "mds.main:main"                   # Point d'entrée : commande "mds" lance mds.main.main()
+ade = "ade.main:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
-include = ["mds", "mds.*"]              # Recherche le package "mds" dans src
+include = ["ade", "ade.*"]
 
 [tool.pytest.ini_options]
 python_files = ["test_*.py", "*_test.py"]
 testpaths = ["tests"]
 
 [tool.setuptools.package-data]
-mds = ["py.typed"]
+ade = ["py.typed"]

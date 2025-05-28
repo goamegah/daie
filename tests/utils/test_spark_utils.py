@@ -2,8 +2,8 @@
 from unittest.mock import MagicMock
 import pytest
 from pyspark.sql import SparkSession
-import mds.utils.spark_utils as SU
-from mds.utils.spark_utils import reset_spark_manager
+import ade.utils.spark_utils as SU
+from ade.utils.spark_utils import reset_spark_manager
 
 # Fixture to reset the singleton before each test
 @pytest.fixture(autouse=True)

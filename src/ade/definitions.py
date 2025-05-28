@@ -2,6 +2,7 @@
 It sets up the directory structure for configuration files and provides paths to specific JSON files
 used for Databricks instances and Azure storage configurations."""
 
+# ade/definitions.py
 import os
 from pathlib import Path
 

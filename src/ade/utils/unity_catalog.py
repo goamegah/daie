@@ -1,6 +1,6 @@
 """ Unity catalog utils """
 
-# mds/utils/unity_catalog.py
+# ade/utils/unity_catalog.py
 from typing import Optional
 from ade.utils.spark_utils import get_spark_session
 

@@ -11,7 +11,7 @@ It handles the configuration of Azure storage accounts and OAuth authentication
 for accessing Azure Data Lake Storage (ADLS) Gen2.
 This module is part of the MDS (Modular Data Science) project."""
 
-# mds/utils/spark_utils.py
+# ade/utils/spark_utils.py
 
 import logging
 import os
