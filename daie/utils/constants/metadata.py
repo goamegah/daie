@@ -1,0 +1,6 @@
+APPLICATION_ID = "application_id"
+TENANT_ID = "tenant_id"
+SUBSCRIPTION_ID = "subscription_id"
+RESOURCE_GROUP_NAME = "resource_group_name"
+SECRET_KEY = "secret_key"
+STORAGE_ACCOUNT_NAME = "storage_account_name"

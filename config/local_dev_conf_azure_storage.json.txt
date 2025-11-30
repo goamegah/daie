@@ -1,6 +1,0 @@
-{
-    "storage_account_name": "your_storage_account_name",
-    "storage_account_key": "your_storage_account_key",
-    "container_name": "your_container_name",
-    "tenant_id": "your_tenant_id"
-}

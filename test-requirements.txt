@@ -1,7 +1,0 @@
-pytest
-pylint
-pyspark
-pytest-mock
-pytest-cov
-wheel
-mock

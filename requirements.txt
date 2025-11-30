@@ -1,8 +1,0 @@
-pyyaml
-pandas 
-XlsxWriter
-requests
-unidecode
-jsonref
-mergedeep
-Jinja2
