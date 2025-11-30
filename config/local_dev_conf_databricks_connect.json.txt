@@ -1,6 +1,0 @@
-{
-    "host": "https://<databricks-instance>",
-    "token": "",
-    "profile": "default",
-    "cluster_id": "<cluster-id>"
-}

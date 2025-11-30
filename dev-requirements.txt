@@ -1,1 +1,0 @@
-databricks-connect==12.2.*
