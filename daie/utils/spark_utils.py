@@ -132,6 +132,10 @@ def get_spark_session() -> SparkSession:
         spark.conf.set(f"fs.azure.account.oauth2.client.endpoint.{storage_account}.dfs.core.windows.net", ENDPOINT)
     else:
         # Spark session for Unit Tests
+        # Ensure SPARK_REMOTE is not set, as it triggers Databricks Connect behavior
+        if "SPARK_REMOTE" in os.environ:
+            del os.environ["SPARK_REMOTE"]
+
         # specific configuration to optimise perfs for unit tests
         spark = (
             SparkSession
