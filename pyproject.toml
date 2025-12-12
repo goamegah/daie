@@ -18,9 +18,9 @@ requires-python = ">=3.11"
 
 [dependency-groups]
 # Unit testing - isolated with local PySpark (for CI/CD)
-# Pin pyspark to 3.5.x to avoid compatibility issues with py4j and databricks-connect
+# Pin pyspark to 3.5.5 exactly to ensure stability and avoid import errors
 test = [
-    "pyspark>=3.5.5,<4.0.0",
+    "pyspark==3.5.5",
     "pytest>=9.0.1",
     "pylint>=4.0.3",
     "pytest-mock>=3.15.1",
@@ -33,6 +33,14 @@ dev = [
     "databricks-connect==15.4.*",
     "databricks-feature-engineering>=0.13.0.1",
     "databricks-sdk>=0.73.0"
+]
+
+[tool.uv]
+conflicts = [
+  [
+    { group = "test" },
+    { group = "dev" },
+  ],
 ]
 
 [project.optional-dependencies]
