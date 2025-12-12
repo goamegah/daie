@@ -818,7 +818,7 @@ dev = [
 test = [
     { name = "mock", specifier = ">=5.2.0" },
     { name = "pylint", specifier = ">=4.0.3" },
-    { name = "pyspark", specifier = ">=3.5.5" },
+    { name = "pyspark", specifier = ">=3.5.5,<4.0.0" },
     { name = "pytest", specifier = ">=9.0.1" },
     { name = "pytest-cov", specifier = ">=7.0.0" },
     { name = "pytest-mock", specifier = ">=3.15.1" },
