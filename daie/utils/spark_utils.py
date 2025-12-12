@@ -101,7 +101,7 @@ def get_spark_session() -> SparkSession:
     """
     global spark #pylint: disable=global-statement
 
-    if importlib.util.find_spec("pyspark.dbutils"):
+    if importlib.util.find_spec("pyspark.dbutils") and not os.environ.get("DAIE_UNIT_TESTING"):
         if os.path.exists(LOCAL_DATABRICKS_CONNECT_CONFIG_FILE):
             # Local spark session for Unity Catalog 'Databricks Connect
             print("\n Bulding Local spark for Unity \n")
