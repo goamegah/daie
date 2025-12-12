@@ -1,0 +1,68 @@
+name: CI/CD Pipeline
+
+# Déclenchement manuel uniquement
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environnement de déploiement'
+        required: true
+        default: 'dev'
+        type: choice
+        options:
+          - dev
+          - test
+          - prod
+
+env:
+  PYTHON_VERSION: '3.11'
+
+jobs:
+  # ============================================
+  # JOB 1: Tests & Qualité du code
+  # ============================================
+  test:
+    name: 🧪 Tests & Linting
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout du code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Installation de uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          version: "latest"
+
+      - name: Installation des dépendances (test)
+        run: uv sync --group test
+
+      - name: Linting (ruff)
+        run: uv run ruff check daie/ tests/
+
+      - name: Type checking (mypy)
+        run: |
+          uv pip install mypy types-pyyaml types-requests
+          uv run mypy daie/ --ignore-missing-imports
+        continue-on-error: true
+
+      - name: Tests unitaires (pytest)
+        run: uv run pytest tests/ -v --junitxml=test-results.xml --cov=daie --cov-report=xml
+
+      - name: Publication des résultats de tests
+        uses: dorny/test-reporter@v1
+        if: always()
+        with:
+          name: Test Results
+          path: test-results.xml
+          reporter: java-junit
+
+      - name: Publication de la couverture
+        uses: codecov/codecov-action@v4
+        with:
+          files: ./coverage.xml
+          fail_ci_if_error: false
