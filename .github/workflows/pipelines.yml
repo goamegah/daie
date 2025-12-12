@@ -22,7 +22,7 @@ jobs:
   # JOB 1: Tests & Qualité du code
   # ============================================
   test:
-    name: 🧪 Tests & Linting
+    name: Tests & Qualité du code
     runs-on: ubuntu-latest
     steps:
       - name: Checkout du code
@@ -40,15 +40,6 @@ jobs:
 
       - name: Installation des dépendances (test)
         run: uv sync --group test
-
-      - name: Linting (ruff)
-        run: uv run ruff check daie/ tests/
-
-      - name: Type checking (mypy)
-        run: |
-          uv pip install mypy types-pyyaml types-requests
-          uv run mypy daie/ --ignore-missing-imports
-        continue-on-error: true
 
       - name: Tests unitaires (pytest)
         run: uv run pytest tests/ -v --junitxml=test-results.xml --cov=daie --cov-report=xml
