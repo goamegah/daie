@@ -37,9 +37,13 @@ jobs:
         uses: astral-sh/setup-uv@v4
         with:
           version: "latest"
+          enable-cache: false
 
       - name: Installation des dépendances (test)
-        run: uv sync --group test --frozen
+        run: |
+          uv sync --group test --frozen
+          echo "=== Vérification version pyspark ==="
+          uv run python -c "import pyspark; print(f'PySpark version: {pyspark.__version__}')"
 
       - name: Tests unitaires (pytest)
         run: uv run pytest tests/ -v --junitxml=test-results.xml --cov=daie --cov-report=xml
