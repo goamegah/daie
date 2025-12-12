@@ -39,7 +39,7 @@ jobs:
           version: "latest"
 
       - name: Installation des dépendances (test)
-        run: uv sync --group test
+        run: uv sync --group test --frozen
 
       - name: Tests unitaires (pytest)
         run: uv run pytest tests/ -v --junitxml=test-results.xml --cov=daie --cov-report=xml
