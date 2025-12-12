@@ -101,7 +101,7 @@ def get_spark_session() -> SparkSession:
     """
     global spark #pylint: disable=global-statement
 
-    if importlib.util.find_spec("pyspark.dbutils") and not os.environ.get("DAIE_UNIT_TESTING"):
+    if importlib.util.find_spec("pyspark.dbutils"):
         if os.path.exists(LOCAL_DATABRICKS_CONNECT_CONFIG_FILE):
             # Local spark session for Unity Catalog 'Databricks Connect
             print("\n Bulding Local spark for Unity \n")
@@ -132,10 +132,6 @@ def get_spark_session() -> SparkSession:
         spark.conf.set(f"fs.azure.account.oauth2.client.endpoint.{storage_account}.dfs.core.windows.net", ENDPOINT)
     else:
         # Spark session for Unit Tests
-        # Ensure SPARK_REMOTE is not set, as it triggers Databricks Connect behavior
-        if "SPARK_REMOTE" in os.environ:
-            del os.environ["SPARK_REMOTE"]
-
         # specific configuration to optimise perfs for unit tests
         spark = (
             SparkSession
