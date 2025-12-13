@@ -33,6 +33,7 @@ jobs:
   # ============================================
   # JOB 1: Lint & Qualité du code
   # ============================================
+  
   lint:
     name: Lint & Qualité du code
     runs-on: ubuntu-latest
@@ -96,12 +97,19 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
+          # Désinstaller databricks-connect AVANT d'installer test-requirements
+          pip uninstall -y -r ./test-excluded-requirements.txt || true
+          # Installer pyspark proprement après avoir supprimé databricks-connect
           pip install -r test-requirements.txt
           pip install pytest-cov
 
       - name: Installation du package en mode développement
-        # run: pip install -e . && pip uninstall -y -r ./test-excluded-requirements.txt && pip install -r ./test-requirements.txt
-        run: pip install -e . && pip uninstall -y -r ./test-excluded-requirements.txt && pip install -r ./test-requirements.txt
+        run: pip install -e .
+
+      - name: Vérification de l'installation PySpark
+        run: |
+          python -c "from pyspark.sql import SparkSession; print('PySpark OK')"
+
       - name: Tests unitaires avec pytest
         run: |
           pytest tests/ \
@@ -111,31 +119,6 @@ jobs:
             --cov-report=xml \
             --cov-report=html \
             --cov-report=term-missing
-
-      - name: Publication des résultats de tests
-        uses: dorny/test-reporter@v1
-        if: always() && github.event_name != 'pull_request'
-        with:
-          name: Test Results
-          path: test-results.xml
-          reporter: java-junit
-          token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Publication de la couverture
-        uses: codecov/codecov-action@v4
-        if: always()
-        with:
-          files: ./coverage.xml
-          fail_ci_if_error: false
-
-      - name: Upload coverage reports
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: coverage-report
-          path: |
-            coverage.xml
-            htmlcov/
 
   # ============================================
   # JOB 3: Build du package
