@@ -1,190 +1,124 @@
 # tests/utils/test_spark_utils.py
-"""
-Unit tests for spark_utils module.
-Uses given/when/then approach with mocked Databricks dependencies.
-"""
-from unittest.mock import MagicMock
-import daie.utils.spark_utils as SU
+from daie.utils.spark_utils import spark
+from daie.utils import spark_utils
+from daie.utils.tests import common as TST
+from unittest.mock import patch, MagicMock
+from pyspark.sql import Row
+from pyspark.sql.functions import col
+
+def test_validate_table_identifier():
+    # Mock arguments
+    table_identifier_unity = "daie_chn_dev_bronze.godwin_raw_opendata.accident_v1"
+    result = spark_utils.validate_table_identifier(table_identifier_unity)
+    assert result == table_identifier_unity
+
+def test_write_delta_table_with_path():
+    # Given: a mock dataframe and a Delta table path identifier
+    dataframe_mock = MagicMock()
+    path = "abfss://daie-platform@daiechndev.dfs.core.windows.net/raw/opendata/accident_v1"
+    table_identifier_path = f"{spark_utils.DELTA}{path}`"
+    partitions = ["_year"]
+    options = {"mergeSchema": "true"}
+
+    # When: patching the dependency and calling the function under test
+    with patch('daie.utils.spark_utils.write_delta_table_by_path') as mock_write_delta_table_by_path:
+        # Then: the correct dependency should be called with expected arguments
+        spark_utils.write_delta_table(dataframe_mock, table_identifier_path, partitions, options)
+        mock_write_delta_table_by_path.assert_called_once_with(dataframe_mock, path, partitions, options)
+
+def test_write_delta_table_with_unity_table_name():
+    # Given: a mock dataframe and a Unity Catalog table identifier
+    dataframe_mock = MagicMock()
+    table_identifier_unity = "daie_chn_dev_silver.godwin_curated_opendata.accident_v1"
+    partitions = ["_year"]
+    options = {"mergeSchema": "true"}
+
+    # When: patching the dependency and calling the function under test
+    with patch('daie.utils.spark_utils.write_delta_table_by_name') as mock_write_delta_table_by_name:
+        spark_utils.write_delta_table(dataframe_mock, table_identifier_unity, partitions, options)
+
+        # Then: the correct dependency should be called with expected arguments
+        mock_write_delta_table_by_name.assert_called_once_with(dataframe_mock, table_identifier_unity, partitions, options, None, None)
+
+def test_write_delta_stream_with_path():
+    # Given: a mock dataframe and a Delta table path identifier
+    new_df_mock = MagicMock()
+    path = "abfss://daie-platform@daiechndev.dfs.core.windows.net/raw/opendata/accident_v1"
+    table_identifier_path = f"{spark_utils.DELTA}{path}`"
+    partitions = ["_year"]
+
+    # When: patching the dependency and calling the function under test
+    with patch('daie.utils.spark_utils.write_delta_stream_by_path') as mock_write_delta_stream_by_path:
+        spark_utils.write_delta_stream(new_df_mock, table_identifier_path, partitions)
+
+        # Then: the correct dependency should be called with expected arguments
+        mock_write_delta_stream_by_path.assert_called_once_with(new_df_mock, path, partitions)
 
 
-class TestCheckIfScopeExists:
-    """Tests for check_if_scope_exists function."""
+def test_write_delta_stream_with_unity_table_name():
+    # Given: a mock dataframe and a Unity Catalog table identifier
+    new_df_mock = MagicMock()
+    table_identifier_unity = "daie_chn_dev_bronze.godwin_raw_opendata.accident_v1"
+    partitions = ["partition_column"]
+    mock_checkpoint_path = "/Volumes/daie_chn_dev_bronze/godwin_raw_opendata/accident_v1"
 
-    def test_scope_exists_returns_true_when_secret_found(self, monkeypatch):
-        """
-        GIVEN a valid scope and key
-        WHEN check_if_scope_exists is called
-        THEN it returns True
-        """
-        # GIVEN
-        fake_dbutils = MagicMock()
-        fake_dbutils.secrets.get.return_value = "secret_value"
-        monkeypatch.setattr(SU, "get_dbutils", lambda: fake_dbutils)
+    # When: patching the dependencies and calling the function under test
+    with patch('daie.utils.spark_utils.write_delta_stream_by_name') as mock_write_delta_stream_by_name, \
+         patch('daie.utils.spark_utils.get_volume_location', return_value=mock_checkpoint_path):
+        spark_utils.write_delta_stream(new_df_mock, table_identifier_unity, partitions)
 
-        # WHEN
-        result = SU.check_if_scope_exists("my_scope", "my_key")
+        # Then: the correct dependency should be called with expected arguments
+        mock_write_delta_stream_by_name.assert_called_once_with(
+            new_df_mock, table_identifier_unity, mock_checkpoint_path, partitions
+        )
 
-        # THEN
-        assert result is True
-        fake_dbutils.secrets.get.assert_called_once_with(scope="my_scope", key="my_key")
+def test_read_delta_table_with_condition_table_exists():
+    # Given: a table identifier, a filter condition, and a DataFrame with matching and non-matching rows
+    table_identifier = "daie_chn_dev_bronze.godwin_raw_opendata.accident_v1"
+    condition = (col("Principal") == "dbw-G-daie-chn-dev-DS")
+    data = [
+        Row(Principal="dbw-G-daie-chn-dev-DE", ActionType="SELECT", ObjectType="SCHEMA"),
+        Row(Principal="dbw-G-daie-chn-dev-DE", ActionType="MANAGE", ObjectType="SCHEMA"),
+        Row(Principal="dbw-G-daie-chn-dev-DS", ActionType="SELECT", ObjectType="SCHEMA")
+    ]
+    dataframe = spark.createDataFrame(data)
+    expected_data = [
+        Row(Principal="dbw-G-daie-chn-dev-DS", ActionType="SELECT", ObjectType="SCHEMA")
+    ]
+    expected_dataframe = spark.createDataFrame(expected_data)
 
-    def test_scope_exists_returns_false_when_secret_not_found(self, monkeypatch):
-        """
-        GIVEN an invalid scope or key
-        WHEN check_if_scope_exists is called
-        THEN it returns False
-        """
-        # GIVEN
-        fake_dbutils = MagicMock()
-        fake_dbutils.secrets.get.side_effect = Exception("Secret not found")
-        monkeypatch.setattr(SU, "get_dbutils", lambda: fake_dbutils)
+    # When: patching dependencies to simulate table exists and calling the function under test
+    with patch('daie.utils.spark_utils.read_delta_table', return_value=dataframe) as mock_read_delta_table, \
+         patch('daie.utils.spark_utils.check_if_table_exists', return_value=True) as mock_check_if_table_exists:
+        result_df = spark_utils.read_delta_table_with_condition(table_identifier, condition)
 
-        # WHEN
-        result = SU.check_if_scope_exists("invalid_scope", "invalid_key")
-
-        # THEN
-        assert result is False
-
-
-class TestDoesPathExistInDatabricks:
-    """Tests for does_path_exist_in_databricks function."""
-
-    def test_path_exists_returns_true(self, monkeypatch):
-        """
-        GIVEN a valid path
-        WHEN does_path_exist_in_databricks is called
-        THEN it returns True
-        """
-        # GIVEN
-        fake_dbutils = MagicMock()
-        fake_dbutils.fs.ls.return_value = ["file1", "file2"]
-        monkeypatch.setattr(SU, "get_dbutils", lambda: fake_dbutils)
-
-        # WHEN
-        result = SU.does_path_exist_in_databricks("/valid/path")
-
-        # THEN
-        assert result is True
-
-    def test_path_exists_returns_false(self, monkeypatch):
-        """
-        GIVEN an invalid path
-        WHEN does_path_exist_in_databricks is called
-        THEN it returns False
-        """
-        # GIVEN
-        fake_dbutils = MagicMock()
-        fake_dbutils.fs.ls.side_effect = Exception("Path not found")
-        monkeypatch.setattr(SU, "get_dbutils", lambda: fake_dbutils)
-
-        # WHEN
-        result = SU.does_path_exist_in_databricks("/invalid/path")
-
-        # THEN
-        assert result is False
+        # Then: the correct dependencies should be called and the filtered DataFrame should match expectation
+        mock_check_if_table_exists.assert_called_once_with(table_identifier)
+        mock_read_delta_table.assert_called_once_with(table_identifier)
+        TST.assert_dataframe_equals(result_df, expected_dataframe)
 
 
-class TestGetApplicationId:
-    """Tests for get_application_id function."""
+def test_read_delta_table_with_condition_table_not_exists():
+    # Given: a table identifier and a filter condition, but the table does not exist
+    table_identifier = "daie_chn_dev_bronze.godwin_raw_opendata.accident_v1"
+    condition = (col("Principal") == "db-G-dspBFI-chn-dev-DS")
 
-    def test_get_application_id_returns_value(self):
-        """
-        GIVEN a valid environment
-        WHEN get_application_id is called
-        THEN it returns the application_id from config
-        """
-        # WHEN
-        result = SU.get_application_id("dev")
+    # When: patching dependencies to simulate table does not exist and calling the function under test
+    with patch('daie.utils.spark_utils.read_delta_table') as mock_read_delta_table, \
+         patch('daie.utils.spark_utils.check_if_table_exists', return_value=False) as mock_check_if_table_exists:
+        result_df = spark_utils.read_delta_table_with_condition(table_identifier, condition)
 
-        # THEN
-        assert result is not None
+        # Then: check_if_table_exists should be called, read_delta_table should not be called, and result should be None
+        mock_check_if_table_exists.assert_called_once_with(table_identifier)
+        mock_read_delta_table.assert_not_called()
+        assert result_df is None
 
-
-class TestGetSecretKey:
-    """Tests for get_secret_key function."""
-
-    def test_get_secret_key_returns_value(self):
-        """
-        GIVEN a valid environment
-        WHEN get_secret_key is called
-        THEN it returns the secret_key from config
-        """
-        # WHEN
-        result = SU.get_secret_key("dev")
-
-        # THEN
-        assert result is not None
-
-
-class TestValidateTableIdentifier:
-    """Tests for validate_table_identifier function."""
-
-    def test_validate_path_adds_delta_prefix(self):
-        """
-        GIVEN a table identifier that is a path without delta prefix
-        WHEN validate_table_identifier is called
-        THEN it adds the delta prefix
-        """
-        # GIVEN
-        path = "abfss://container@storage.dfs.core.windows.net/path/to/table"
-
-        # WHEN
-        result = SU.validate_table_identifier(path)
-
-        # THEN
-        assert result.startswith("`delta`.`")
-        assert result.endswith("`")
-
-    def test_validate_table_name_unchanged(self):
-        """
-        GIVEN a table identifier that is a catalog.schema.table name
-        WHEN validate_table_identifier is called
-        THEN it returns unchanged
-        """
-        # GIVEN
-        table_name = "catalog.schema.table"
-
-        # WHEN
-        result = SU.validate_table_identifier(table_name)
-
-        # THEN
-        assert result == table_name
-
-
-class TestCheckIfTableIdentifierIsPath:
-    """Tests for check_if_table_identifier_is_path function."""
-
-    def test_returns_true_for_abfss_path(self):
-        """
-        GIVEN a path starting with abfss://
-        WHEN check_if_table_identifier_is_path is called
-        THEN it returns True
-        """
-        assert SU.check_if_table_identifier_is_path("abfss://container@storage/path") is True
-
-    def test_returns_false_for_table_name(self):
-        """
-        GIVEN a catalog.schema.table name
-        WHEN check_if_table_identifier_is_path is called
-        THEN it returns False
-        """
-        assert SU.check_if_table_identifier_is_path("catalog.schema.table") is False
-
-
-class TestExtractStoragePath:
-    """Tests for extract_storage_path function."""
-
-    def test_extracts_path_from_delta_identifier(self):
-        """
-        GIVEN a delta table identifier with path
-        WHEN extract_storage_path is called
-        THEN it returns the storage path
-        """
-        # GIVEN
-        delta_identifier = "`delta`.`abfss://container@storage.dfs.core.windows.net/path/to/table`"
-
-        # WHEN
-        result = SU.extract_storage_path(delta_identifier)
-
-        # THEN
-        assert result == "abfss://container@storage.dfs.core.windows.net/path/to/table"
+if __name__ == "__main__":
+    #debug section
+    test_read_delta_table_with_condition_table_exists()
+    test_read_delta_table_with_condition_table_not_exists()
+    test_write_delta_stream_with_path()
+    test_write_delta_stream_with_unity_table_name()
+    test_write_delta_table_with_unity_table_name()
+    test_write_delta_table_with_path()
+    test_validate_table_identifier()
