@@ -1,0 +1,7 @@
+pandas
+numpy
+requests
+scikit-learn
+mlflow
+databricks-sdk
+databricks-feature-engineering

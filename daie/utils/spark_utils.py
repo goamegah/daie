@@ -3,7 +3,7 @@ import os
 import json
 from typing import Dict, Any, Optional
 from pathlib import Path
-from pyspark.sql import SparkSession, DataFrame, Column
+from pyspark.sql import SparkSession, DataFrame
 from pyspark.sql import functions as F
 from pyspark import errors as E
 from daie.utils.constants.metadata import TENANT_ID, STORAGE_ACCOUNT_NAME, APPLICATION_ID, SECRET_KEY
