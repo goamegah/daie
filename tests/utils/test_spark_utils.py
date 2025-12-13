@@ -1,7 +1,7 @@
 # tests/utils/test_spark_utils.py
 from daie.utils.spark_utils import spark
 from daie.utils import spark_utils
-from daie.utils.tests import common as TST
+from daie.utils.tests import common as tst
 from unittest.mock import patch, MagicMock
 from pyspark.sql import Row
 from pyspark.sql.functions import col
@@ -95,7 +95,7 @@ def test_read_delta_table_with_condition_table_exists():
         # Then: the correct dependencies should be called and the filtered DataFrame should match expectation
         mock_check_if_table_exists.assert_called_once_with(table_identifier)
         mock_read_delta_table.assert_called_once_with(table_identifier)
-        TST.assert_dataframe_equals(result_df, expected_dataframe)
+        tst.assert_dataframe_equals(result_df, expected_dataframe)
 
 
 def test_read_delta_table_with_condition_table_not_exists():
