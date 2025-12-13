@@ -100,8 +100,8 @@ jobs:
           pip install pytest-cov
 
       - name: Installation du package en mode développement
-        run: pip install -e .
-
+        # run: pip install -e . && pip uninstall -y -r ./test-excluded-requirements.txt && pip install -r ./test-requirements.txt
+        run: pip install -e . && pip uninstall -y -r ./test-excluded-requirements.txt && pip install -r ./test-requirements.txt
       - name: Tests unitaires avec pytest
         run: |
           pytest tests/ \
