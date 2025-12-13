@@ -24,6 +24,11 @@ on:
 env:
   PYTHON_VERSION: '3.11'
 
+permissions:
+  contents: read
+  checks: write
+  pull-requests: write
+
 jobs:
   # ============================================
   # JOB 1: Lint & Qualité du code
@@ -81,6 +86,12 @@ jobs:
           python-version: ${{ env.PYTHON_VERSION }}
           cache: 'pip'
 
+      - name: Setup Java (requis pour PySpark)
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '11'
+
       - name: Installation des dépendances
         run: |
           python -m pip install --upgrade pip
@@ -103,11 +114,12 @@ jobs:
 
       - name: Publication des résultats de tests
         uses: dorny/test-reporter@v1
-        if: always()
+        if: always() && github.event_name != 'pull_request'
         with:
           name: Test Results
           path: test-results.xml
           reporter: java-junit
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Publication de la couverture
         uses: codecov/codecov-action@v4
