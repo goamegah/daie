@@ -1,3 +1,4 @@
 pytest
 pylint
 pyspark==3.5.3
+pytest-cov
