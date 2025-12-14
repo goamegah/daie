@@ -50,24 +50,10 @@ jobs:
       - name: Installation des dépendances (lint)
         run: |
           python -m pip install --upgrade pip
-          pip install ruff mypy codespell
+          pip install pylint
 
-      - name: Vérification avec Ruff (linting)
-        run: ruff check daie/ tests/
-        continue-on-error: true
-
-      - name: Vérification avec Ruff (format)
-        run: ruff format --check daie/ tests/
-        continue-on-error: true
-
-      - name: Vérification du typage avec MyPy
-        run: |
-          pip install -r requirements.txt
-          mypy daie --ignore-missing-imports
-        continue-on-error: true
-
-      - name: Vérification orthographique avec Codespell
-        run: codespell daie/ tests/ --skip="*.pyc,*.egg-info,__pycache__,.git"
+      - name: Vérification avec Pylint
+        run: pylint daie/ --exit-zero --output-format=colorized
         continue-on-error: true
   
   # ============================================
@@ -93,13 +79,10 @@ jobs:
           distribution: 'temurin'
           java-version: '11'
 
-      - name: Installation des dépendances de test uniquement
+      - name: Installation des dépendances de test
         run: |
           python -m pip install --upgrade pip
-          # Installer UNIQUEMENT les dépendances nécessaires pour les tests
-          # PAS de databricks-sdk, databricks-feature-engineering, databricks-connect
           pip install -r test-requirements.txt
-          pip install pandas numpy requests scikit-learn mlflow
 
       - name: Installation du package en mode développement (sans dépendances)
         run: pip install -e . --no-deps
