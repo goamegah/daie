@@ -146,7 +146,8 @@ jobs:
           files = list(w.files.list_directory_contents(volume_path))
           print(f"Files in {volume_path}:")
           for f in files:
-              print(f"  - {f.name} ({f.size} bytes)")
+              size = f.file_size if hasattr(f, 'file_size') else 'N/A'
+              print(f"  - {f.name} ({size} bytes)")
           print()
           
           print("╔═══════════════════════════════════════╗")
