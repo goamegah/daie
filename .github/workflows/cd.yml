@@ -30,9 +30,6 @@ permissions:
   contents: read
 
 jobs:
-  # ============================================
-  # JOB 1: Tests (obligatoire pour prod/test)
-  # ============================================
   test:
     name: Tests avant déploiement
     runs-on: ubuntu-latest
@@ -64,9 +61,6 @@ jobs:
       - name: Tests unitaires
         run: pytest tests/ -v
 
-  # ============================================
-  # JOB 2: Build
-  # ============================================
   build:
     name: Build du package
     runs-on: ubuntu-latest
@@ -97,64 +91,128 @@ jobs:
           path: dist/
           retention-days: 7
 
-  # ============================================
-  # JOB 3: Déploiement sur Databricks
-  # ============================================
-  
-#   deploy:
-#     name: Déploiement Databricks
-#     runs-on: ubuntu-latest
-#     needs: build
-#     environment: ${{ github.event.inputs.environment }}
-#     env:
-#       # Configuration Databricks
-#       DATABRICKS_HOST: ${{ vars.DATABRICKS_HOST }}
-#       # Service Principal credentials (depuis GitHub Secrets)
-#       ARM_CLIENT_ID: ${{ secrets.ARM_CLIENT_ID }}
-#       ARM_CLIENT_SECRET: ${{ secrets.ARM_CLIENT_SECRET }}
-#       ARM_TENANT_ID: ${{ secrets.ARM_TENANT_ID }}
-#       # Variables de déploiement
-#       DEVELOPER_NAME: ${{ github.event.inputs.developer_name || 'dev' }}
-#       ENV_NAME: ${{ github.event.inputs.environment }}
-#     steps:
-#       - name: Checkout du code
-#         uses: actions/checkout@v4
+  deploy:
+    name: Déploiement Databricks
+    runs-on: ubuntu-latest
+    needs: build
+    environment: ${{ github.event.inputs.environment }}
+    env:
+      # Configuration Databricks
+      DATABRICKS_HOST: ${{ vars.DATABRICKS_HOST }}
+      # Service Principal credentials (depuis GitHub Secrets)
+      ARM_CLIENT_ID: ${{ secrets.ARM_CLIENT_ID }}
+      ARM_CLIENT_SECRET: ${{ secrets.ARM_CLIENT_SECRET }}
+      ARM_TENANT_ID: ${{ secrets.ARM_TENANT_ID }}
+      # Variables de déploiement
+      DEVELOPER_NAME: ${{ github.event.inputs.developer_name || 'dev' }}
+      ENV_NAME: ${{ github.event.inputs.environment }}
+    steps:
+      - name: Checkout du code
+        uses: actions/checkout@v4
 
-#       - name: Setup Python
-#         uses: actions/setup-python@v5
-#         with:
-#           python-version: ${{ env.PYTHON_VERSION }}
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
 
-#       - name: Download des artefacts de build
-#         uses: actions/download-artifact@v4
-#         with:
-#           name: python-package
-#           path: dist/
+      - name: Download des artefacts de build
+        uses: actions/download-artifact@v4
+        with:
+          name: python-package
+          path: dist/
 
-#       - name: Installation de Databricks CLI
-#         run: pip install databricks-cli databricks-sdk
+      - name: Installation de Databricks CLI
+        run: pip install databricks-cli databricks-sdk
 
-#       - name: Configuration de Databricks CLI (Service Principal)
-#         run: |
-#           # Authentification via Service Principal (OAuth)
-#           # Le CLI utilise les variables d'environnement ARM_*
-#           echo "[DEFAULT]" > ~/.databrickscfg
-#           echo "host = ${{ env.DATABRICKS_HOST }}" >> ~/.databrickscfg
+      - name: Configuration de Databricks CLI (Service Principal)
+        run: |
+          # Authentification via Service Principal (OAuth)
+          # Le CLI utilise les variables d'environnement ARM_*
+          echo "[DEFAULT]" > ~/.databrickscfg
+          echo "host = ${{ env.DATABRICKS_HOST }}" >> ~/.databrickscfg
           
-#           # Obtenir un token OAuth via le Service Principal
-#           TOKEN=$(curl -s -X POST \
-#             "https://login.microsoftonline.com/${{ env.ARM_TENANT_ID }}/oauth2/v2.0/token" \
-#             -H "Content-Type: application/x-www-form-urlencoded" \
-#             -d "client_id=${{ env.ARM_CLIENT_ID }}" \
-#             -d "client_secret=${{ env.ARM_CLIENT_SECRET }}" \
-#             -d "scope=2ff814a6-3304-4ab8-85cb-cd0e6f879c1d/.default" \
-#             -d "grant_type=client_credentials" | jq -r '.access_token')
+          # Obtenir un token OAuth via le Service Principal
+          TOKEN=$(curl -s -X POST \
+            "https://login.microsoftonline.com/${{ env.ARM_TENANT_ID }}/oauth2/v2.0/token" \
+            -H "Content-Type: application/x-www-form-urlencoded" \
+            -d "client_id=${{ env.ARM_CLIENT_ID }}" \
+            -d "client_secret=${{ env.ARM_CLIENT_SECRET }}" \
+            -d "scope=2ff814a6-3304-4ab8-85cb-cd0e6f879c1d/.default" \
+            -d "grant_type=client_credentials" | jq -r '.access_token')
           
-#           echo "token = $TOKEN" >> ~/.databrickscfg
+          echo "token = $TOKEN" >> ~/.databrickscfg
           
-#           echo "✅ Authentification Service Principal configurée"
+          echo "✅ Authentification Service Principal configurée"
 
-#       - name: Définition des variables de déploiement
+      - name: Définition des variables de déploiement
+        id: vars
+        run: |
+          # Catalog Bronze pour les artifacts
+          BRONZE_CATALOG="${{ env.CATALOG_PREFIX }}_${{ env.ENV_NAME }}_bronze"
+          
+          # Chemin du volume pour les packages
+          VOLUME_PATH="/Volumes/${BRONZE_CATALOG}/artifacts/packages/${{ env.DEVELOPER_NAME }}"
+          
+          echo "BRONZE_CATALOG=$BRONZE_CATALOG" >> $GITHUB_OUTPUT
+          echo "VOLUME_PATH=$VOLUME_PATH" >> $GITHUB_OUTPUT
+
+      - name: Affichage de l'environnement de déploiement
+        run: |
+          echo "=========================================="
+          echo "🚀 CONFIGURATION DU DÉPLOIEMENT"
+          echo "=========================================="
+          echo "👤 Déclenché par: ${{ github.actor }}"
+          echo "🌿 Branche: ${{ github.ref_name }}"
+          echo "🏷️  Développeur: ${{ env.DEVELOPER_NAME }}"
+          echo "🌍 Environnement: ${{ env.ENV_NAME }}"
+          echo ""
+          echo "📦 Databricks Host: ${{ env.DATABRICKS_HOST }}"
+          echo "🔐 Auth: Service Principal"
+          echo "🥉 Bronze Catalog: ${{ steps.vars.outputs.BRONZE_CATALOG }}"
+          echo "📁 Volume Path: ${{ steps.vars.outputs.VOLUME_PATH }}"
+          echo ""
+          echo "📋 Packages à déployer:"
+          ls -lh dist/
+          echo "=========================================="
+
+      - name: Upload du wheel vers Unity Catalog Volume
+        run: |
+          WHEEL_FILE=$(ls dist/*.whl | head -1)
+          WHEEL_NAME=$(basename $WHEEL_FILE)
+          VOLUME_PATH="${{ steps.vars.outputs.VOLUME_PATH }}"
+          
+          echo "📤 Upload de $WHEEL_NAME"
+          echo "   Destination: $VOLUME_PATH/$WHEEL_NAME"
+          
+          databricks fs cp "$WHEEL_FILE" "dbfs:$VOLUME_PATH/$WHEEL_NAME" --overwrite
+          
+          echo ""
+          echo "✅ Package uploadé avec succès!"
+          echo ""
+          echo "📝 Pour installer ce package dans un notebook Databricks:"
+          echo "   %pip install $VOLUME_PATH/$WHEEL_NAME"
+
+      - name: Vérification du déploiement
+        run: |
+          VOLUME_PATH="${{ steps.vars.outputs.VOLUME_PATH }}"
+          echo "📋 Contenu du volume:"
+          databricks fs ls "dbfs:$VOLUME_PATH"
+        continue-on-error: true
+
+      - name: Résumé du déploiement
+        run: |
+          echo "=========================================="
+          echo "✅ DÉPLOIEMENT TERMINÉ"
+          echo "=========================================="
+          echo "Environnement: ${{ env.ENV_NAME }}"
+          echo "Développeur: ${{ env.DEVELOPER_NAME }}"
+          echo "Catalog: ${{ steps.vars.outputs.BRONZE_CATALOG }}"
+          echo "Volume: ${{ steps.vars.outputs.VOLUME_PATH }}"
+          echo "Branche: ${{ github.ref_name }}"
+          echo "Commit: ${{ github.sha }}"
+          echo "Auth: Service Principal (${{ env.ARM_CLIENT_ID }})"
+          echo "Déclenché par: ${{ github.actor }}"
+          echo "=========================================="
 #         id: vars
 #         run: |
 #           # Catalog Bronze pour les artifacts
