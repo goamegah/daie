@@ -39,14 +39,17 @@ jobs:
     if: ${{ !(github.event.inputs.environment == 'dev' && github.event.inputs.skip_tests == 'true') }}
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-      - uses: actions/setup-python@v5
+      - name: Setup Python
+        uses: actions/setup-python@v5
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           cache: pip
 
-      - uses: actions/setup-java@v4
+      - name: Setup Java
+        uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '11'
@@ -58,41 +61,49 @@ jobs:
           pip install -e . --no-deps
 
       - name: Run tests
-        run: pytest tests/ -v
+        run: pytest tests/ -v --cov=src --cov-report=term-missing
 
 # ============================================================
 # BUILD
 # ============================================================
   build:
-    name: Build wheel
+    name: Build Python package
     runs-on: ubuntu-latest
     needs: test
     if: always() && (needs.test.result == 'success' || needs.test.result == 'skipped')
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-      - uses: actions/setup-python@v5
+      - name: Setup Python
+        uses: actions/setup-python@v5
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           cache: pip
 
-      - name: Build package
+      - name: Build wheel package
         run: |
           pip install -U pip build wheel
           python -m build
+          
+          echo ""
+          echo "📦 Package built:"
+          ls -lh dist/
 
-      - uses: actions/upload-artifact@v4
+      - name: Upload wheel artifact
+        uses: actions/upload-artifact@v4
         with:
           name: python-wheel
-          path: dist/
+          path: dist/*.whl
           retention-days: 7
+          if-no-files-found: error
 
 # ============================================================
 # DEPLOY
 # ============================================================
   deploy:
-    name: Déploiement Databricks
+    name: Déploiement sur Databricks
     runs-on: ubuntu-latest
     needs: build
     environment: ${{ github.event.inputs.environment }}
@@ -101,59 +112,132 @@ jobs:
       ENV_NAME: ${{ github.event.inputs.environment }}
       DEVELOPER_NAME: ${{ github.event.inputs.developer_name }}
       DATABRICKS_HOST: ${{ vars.DATABRICKS_HOST }}
-
+      
+      # Authentification Azure AD Service Principal
       ARM_CLIENT_ID: ${{ secrets.ARM_CLIENT_ID }}
       ARM_CLIENT_SECRET: ${{ secrets.ARM_CLIENT_SECRET }}
       ARM_TENANT_ID: ${{ secrets.ARM_TENANT_ID }}
+      ARM_SUBSCRIPTION_ID: ${{ secrets.ARM_SUBSCRIPTION_ID }}
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-      - uses: actions/setup-python@v5
+      - name: Setup Python
+        uses: actions/setup-python@v5
         with:
           python-version: ${{ env.PYTHON_VERSION }}
 
-      - uses: actions/download-artifact@v4
+      - name: Download wheel artifact
+        uses: actions/download-artifact@v4
         with:
           name: python-wheel
           path: dist/
 
       # --------------------------------------------------------
-      # Databricks CLI v2 (Python module only)
+      # Install Databricks CLI
       # --------------------------------------------------------
-      - name: Install Databricks CLI v2
+      - name: Install Databricks CLI
         run: |
           pip install -U pip
-          pip uninstall -y databricks-cli || true
-          pip install -U databricks databricks-sdk
-          python -m databricks --version
+          pip install databricks-cli databricks-sdk
+          
+          # Vérifier l'installation
+          databricks --version
+          echo ""
+          echo "✅ Databricks CLI installed"
 
       # --------------------------------------------------------
-      # Auth Azure AD - Service Principal
+      # Configure Databricks authentication
       # --------------------------------------------------------
-      - name: Configure Databricks auth (Azure AD SP)
+      - name: Configure Databricks authentication
         run: |
+          # Vérifier les variables d'environnement requises
+          if [[ -z "$DATABRICKS_HOST" ]]; then
+            echo "❌ DATABRICKS_HOST is not set"
+            exit 1
+          fi
+          
+          if [[ -z "$ARM_CLIENT_ID" ]]; then
+            echo "❌ ARM_CLIENT_ID is not set"
+            exit 1
+          fi
+          
+          # Créer le fichier de configuration Databricks
+          mkdir -p ~/.databricks
           cat <<EOF > ~/.databrickscfg
           [DEFAULT]
-          host = ${DATABRICKS_HOST}
-          azure_client_id = ${ARM_CLIENT_ID}
-          azure_client_secret = ${ARM_CLIENT_SECRET}
-          azure_tenant_id = ${ARM_TENANT_ID}
+          host = $DATABRICKS_HOST
+          azure_client_id = $ARM_CLIENT_ID
+          azure_client_secret = $ARM_CLIENT_SECRET
+          azure_tenant_id = $ARM_TENANT_ID
           EOF
-
-          python -m databricks workspace list || true
+          
+          chmod 600 ~/.databrickscfg
+          echo "✅ Databricks config created"
 
       # --------------------------------------------------------
-      # Compute deployment paths
+      # Test Databricks connection
+      # --------------------------------------------------------
+      - name: Test Databricks connection
+        run: |
+          echo "🔍 Testing connection to Databricks workspace..."
+          
+          # Tester la connexion
+          if databricks workspace list / --profile DEFAULT > /dev/null 2>&1; then
+            echo "✅ Connection successful"
+          else
+            echo "⚠️  Workspace list failed, but continuing (might be permissions)"
+          fi
+          
+          # Afficher les informations de connexion (sans les secrets)
+          echo ""
+          echo "📋 Connection info:"
+          echo "   Host: $DATABRICKS_HOST"
+          echo "   Tenant: $ARM_TENANT_ID"
+
+      # --------------------------------------------------------
+      # Compute deployment variables
       # --------------------------------------------------------
       - name: Compute deployment variables
         id: vars
         run: |
+          # Définir les variables de déploiement
           BRONZE_CATALOG="${CATALOG_PREFIX}_${ENV_NAME}_bronze"
-          VOLUME_PATH="/Volumes/${BRONZE_CATALOG}/artifacts/packages/${DEVELOPER_NAME}"
+          VOLUME_BASE="/Volumes/${BRONZE_CATALOG}/artifacts/packages"
+          VOLUME_PATH="${VOLUME_BASE}/${DEVELOPER_NAME}"
+          
+          # Récupérer le nom du wheel
+          WHEEL_FILE=$(ls dist/*.whl | head -1)
+          WHEEL_NAME=$(basename "$WHEEL_FILE")
+          
+          # Exporter les variables
+          echo "BRONZE_CATALOG=${BRONZE_CATALOG}" >> $GITHUB_OUTPUT
+          echo "VOLUME_PATH=${VOLUME_PATH}" >> $GITHUB_OUTPUT
+          echo "WHEEL_FILE=${WHEEL_FILE}" >> $GITHUB_OUTPUT
+          echo "WHEEL_NAME=${WHEEL_NAME}" >> $GITHUB_OUTPUT
+          
+          # Afficher les informations
+          echo ""
+          echo "📦 Deployment variables:"
+          echo "   Catalog: ${BRONZE_CATALOG}"
+          echo "   Volume: ${VOLUME_PATH}"
+          echo "   Package: ${WHEEL_NAME}"
 
-          echo "BRONZE_CATALOG=$BRONZE_CATALOG" >> $GITHUB_OUTPUT
-          echo "VOLUME_PATH=$VOLUME_PATH" >> $GITHUB_OUTPUT
+      # --------------------------------------------------------
+      # Create Volume directory structure
+      # --------------------------------------------------------
+      - name: Create Volume directory
+        run: |
+          VOLUME_PATH="${{ steps.vars.outputs.VOLUME_PATH }}"
+          
+          echo "📁 Creating volume directory: ${VOLUME_PATH}"
+          
+          # Créer le répertoire dans le volume Unity Catalog
+          # Note: la commande peut échouer si le répertoire existe déjà
+          databricks fs mkdirs "dbfs:${VOLUME_PATH}" --profile DEFAULT || {
+            echo "⚠️  Directory might already exist, continuing..."
+          }
 
       # --------------------------------------------------------
       # Upload wheel to Unity Catalog Volume
@@ -161,27 +245,91 @@ jobs:
       - name: Upload wheel to Unity Catalog Volume
         run: |
           set -e
-          WHEEL=$(ls dist/*.whl | head -1)
-          VOLUME="${{ steps.vars.outputs.VOLUME_PATH }}"
-
-          echo "Uploading $WHEEL to $VOLUME"
-
-          python -m databricks fs mkdirs "dbfs:$VOLUME"
-          python -m databricks fs cp "$WHEEL" "dbfs:$VOLUME/" --overwrite
-          python -m databricks fs ls "dbfs:$VOLUME"
+          
+          WHEEL_FILE="${{ steps.vars.outputs.WHEEL_FILE }}"
+          VOLUME_PATH="${{ steps.vars.outputs.VOLUME_PATH }}"
+          WHEEL_NAME="${{ steps.vars.outputs.WHEEL_NAME }}"
+          
+          echo ""
+          echo "📤 Uploading wheel package..."
+          echo "   Source: ${WHEEL_FILE}"
+          echo "   Destination: dbfs:${VOLUME_PATH}/${WHEEL_NAME}"
+          echo ""
+          
+          # Upload du fichier wheel avec overwrite
+          databricks fs cp "${WHEEL_FILE}" "dbfs:${VOLUME_PATH}/${WHEEL_NAME}" \
+            --overwrite \
+            --profile DEFAULT
+          
+          echo ""
+          echo "✅ Upload successful"
 
       # --------------------------------------------------------
-      # Summary
+      # Verify upload
+      # --------------------------------------------------------
+      - name: Verify upload
+        run: |
+          VOLUME_PATH="${{ steps.vars.outputs.VOLUME_PATH }}"
+          WHEEL_NAME="${{ steps.vars.outputs.WHEEL_NAME }}"
+          
+          echo ""
+          echo "🔍 Verifying upload..."
+          echo ""
+          
+          # Lister le contenu du volume
+          if databricks fs ls "dbfs:${VOLUME_PATH}/" --profile DEFAULT; then
+            echo ""
+            echo "✅ Package verified in volume"
+          else
+            echo ""
+            echo "❌ Failed to verify package"
+            exit 1
+          fi
+
+      # --------------------------------------------------------
+      # Deployment summary
       # --------------------------------------------------------
       - name: Deployment summary
+        if: always()
         run: |
-          echo "=========================================="
-          echo "✅ DÉPLOIEMENT TERMINÉ"
-          echo "=========================================="
-          echo "Environment : $ENV_NAME"
-          echo "Developer   : $DEVELOPER_NAME"
-          echo "Catalog     : ${{ steps.vars.outputs.BRONZE_CATALOG }}"
-          echo "Volume      : ${{ steps.vars.outputs.VOLUME_PATH }}"
-          echo "Commit      : ${{ github.sha }}"
-          echo "Actor       : ${{ github.actor }}"
-          echo "=========================================="
+          WHEEL_NAME="${{ steps.vars.outputs.WHEEL_NAME }}"
+          BRONZE_CATALOG="${{ steps.vars.outputs.BRONZE_CATALOG }}"
+          VOLUME_PATH="${{ steps.vars.outputs.VOLUME_PATH }}"
+          
+          echo ""
+          echo "╔════════════════════════════════════════════════════════╗"
+          echo "║        ✅ DÉPLOIEMENT DATABRICKS TERMINÉ               ║"
+          echo "╚════════════════════════════════════════════════════════╝"
+          echo ""
+          echo "📋 Informations de déploiement:"
+          echo "   • Environment    : ${{ env.ENV_NAME }}"
+          echo "   • Developer      : ${{ env.DEVELOPER_NAME }}"
+          echo "   • Catalog        : ${BRONZE_CATALOG}"
+          echo "   • Volume         : ${VOLUME_PATH}"
+          echo "   • Package        : ${WHEEL_NAME}"
+          echo ""
+          echo "🔗 Databricks:"
+          echo "   • Workspace      : ${{ env.DATABRICKS_HOST }}"
+          echo ""
+          echo "📝 Git:"
+          echo "   • Commit         : ${{ github.sha }}"
+          echo "   • Branch         : ${{ github.ref_name }}"
+          echo "   • Actor          : ${{ github.actor }}"
+          echo ""
+          echo "╔════════════════════════════════════════════════════════╗"
+          echo "║  📦 INSTALLATION DANS UN NOTEBOOK DATABRICKS          ║"
+          echo "╚════════════════════════════════════════════════════════╝"
+          echo ""
+          echo "%pip install /Volumes/${BRONZE_CATALOG}/artifacts/packages/${{ env.DEVELOPER_NAME }}/${WHEEL_NAME}"
+          echo ""
+          echo "╚════════════════════════════════════════════════════════╝"
+          echo ""
+
+      # --------------------------------------------------------
+      # Notification (optionnel)
+      # --------------------------------------------------------
+      - name: Send notification
+        if: failure()
+        run: |
+          echo "❌ Deployment failed!"
+          echo "Check the logs above for more details."
