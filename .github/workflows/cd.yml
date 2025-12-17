@@ -29,9 +29,9 @@ env:
 permissions:
   contents: read
 
-# ------------------------------------------------------------
+# ============================================================
 # TESTS
-# ------------------------------------------------------------
+# ============================================================
 jobs:
   test:
     name: Tests avant déploiement
@@ -51,7 +51,7 @@ jobs:
           distribution: temurin
           java-version: '11'
 
-      - name: Install test deps
+      - name: Install test dependencies
         run: |
           pip install -U pip
           pip install -r test-requirements.txt
@@ -60,9 +60,9 @@ jobs:
       - name: Run tests
         run: pytest tests/ -v
 
-# ------------------------------------------------------------
+# ============================================================
 # BUILD
-# ------------------------------------------------------------
+# ============================================================
   build:
     name: Build wheel
     runs-on: ubuntu-latest
@@ -88,9 +88,9 @@ jobs:
           path: dist/
           retention-days: 7
 
-# ------------------------------------------------------------
+# ============================================================
 # DEPLOY
-# ------------------------------------------------------------
+# ============================================================
   deploy:
     name: Déploiement Databricks
     runs-on: ubuntu-latest
@@ -118,20 +118,19 @@ jobs:
           name: python-wheel
           path: dist/
 
-      # -------------------------
-      # Databricks CLI v2
-      # -------------------------
+      # --------------------------------------------------------
+      # Databricks CLI v2 (Python module only)
+      # --------------------------------------------------------
       - name: Install Databricks CLI v2
         run: |
           pip install -U pip
           pip uninstall -y databricks-cli || true
           pip install -U databricks databricks-sdk
-          echo "$HOME/.local/bin" >> $GITHUB_PATH
-          databricks --version
+          python -m databricks --version
 
-      # -------------------------
-      # Auth Azure AD (Service Principal)
-      # -------------------------
+      # --------------------------------------------------------
+      # Auth Azure AD - Service Principal
+      # --------------------------------------------------------
       - name: Configure Databricks auth (Azure AD SP)
         run: |
           cat <<EOF > ~/.databrickscfg
@@ -142,12 +141,12 @@ jobs:
           azure_tenant_id = ${ARM_TENANT_ID}
           EOF
 
-          databricks workspace list || true
+          python -m databricks workspace list || true
 
-      # -------------------------
-      # Variables
-      # -------------------------
-      - name: Compute deployment paths
+      # --------------------------------------------------------
+      # Compute deployment paths
+      # --------------------------------------------------------
+      - name: Compute deployment variables
         id: vars
         run: |
           BRONZE_CATALOG="${CATALOG_PREFIX}_${ENV_NAME}_bronze"
@@ -156,25 +155,33 @@ jobs:
           echo "BRONZE_CATALOG=$BRONZE_CATALOG" >> $GITHUB_OUTPUT
           echo "VOLUME_PATH=$VOLUME_PATH" >> $GITHUB_OUTPUT
 
-      # -------------------------
-      # Upload
-      # -------------------------
+      # --------------------------------------------------------
+      # Upload wheel to Unity Catalog Volume
+      # --------------------------------------------------------
       - name: Upload wheel to Unity Catalog Volume
         run: |
+          set -e
           WHEEL=$(ls dist/*.whl | head -1)
-          echo "Uploading $WHEEL"
-          databricks fs mkdirs "dbfs:${{ steps.vars.outputs.VOLUME_PATH }}"
-          databricks fs cp "$WHEEL" "dbfs:${{ steps.vars.outputs.VOLUME_PATH }}/" --overwrite
-          databricks fs ls "dbfs:${{ steps.vars.outputs.VOLUME_PATH }}"
+          VOLUME="${{ steps.vars.outputs.VOLUME_PATH }}"
 
-      # -------------------------
+          echo "Uploading $WHEEL to $VOLUME"
+
+          python -m databricks fs mkdirs "dbfs:$VOLUME"
+          python -m databricks fs cp "$WHEEL" "dbfs:$VOLUME/" --overwrite
+          python -m databricks fs ls "dbfs:$VOLUME"
+
+      # --------------------------------------------------------
       # Summary
-      # -------------------------
+      # --------------------------------------------------------
       - name: Deployment summary
         run: |
-          echo "✅ Déploiement terminé"
-          echo "Env        : $ENV_NAME"
-          echo "Dev        : $DEVELOPER_NAME"
-          echo "Catalog    : ${{ steps.vars.outputs.BRONZE_CATALOG }}"
-          echo "Volume     : ${{ steps.vars.outputs.VOLUME_PATH }}"
-          echo "Commit     : ${{ github.sha }}"
+          echo "=========================================="
+          echo "✅ DÉPLOIEMENT TERMINÉ"
+          echo "=========================================="
+          echo "Environment : $ENV_NAME"
+          echo "Developer   : $DEVELOPER_NAME"
+          echo "Catalog     : ${{ steps.vars.outputs.BRONZE_CATALOG }}"
+          echo "Volume      : ${{ steps.vars.outputs.VOLUME_PATH }}"
+          echo "Commit      : ${{ github.sha }}"
+          echo "Actor       : ${{ github.actor }}"
+          echo "=========================================="
