@@ -4,20 +4,18 @@ on:
   workflow_dispatch:
     inputs:
       environment:
-        description: 'Environnement de déploiement'
+        description: 'Environnement'
         required: true
         default: 'dev'
         type: choice
         options: [dev, test, prod]
-
       developer_name:
-        description: 'Nom du développeur (ex: godwin)'
+        description: 'Nom développeur'
         required: false
         default: 'dev'
         type: string
-
       skip_tests:
-        description: 'Ignorer les tests (uniquement pour dev)'
+        description: 'Ignorer tests'
         required: false
         default: false
         type: boolean
@@ -29,323 +27,161 @@ env:
 permissions:
   contents: read
 
-# ============================================================
-# TESTS
-# ============================================================
 jobs:
   test:
-    name: Tests avant déploiement
+    name: Tests
     runs-on: ubuntu-latest
     if: ${{ !(github.event.inputs.environment == 'dev' && github.event.inputs.skip_tests == 'true') }}
-
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Python
-        uses: actions/setup-python@v5
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           cache: pip
-
-      - name: Setup Java
-        uses: actions/setup-java@v4
+      - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '11'
-
-      - name: Install test dependencies
-        run: |
+      - run: |
           pip install -U pip
           pip install -r test-requirements.txt
           pip install -e . --no-deps
+      - run: pytest tests/ -v --cov=src --cov-report=term-missing
 
-      - name: Run tests
-        run: pytest tests/ -v --cov=src --cov-report=term-missing
-
-# ============================================================
-# BUILD
-# ============================================================
   build:
-    name: Build Python package
+    name: Build
     runs-on: ubuntu-latest
     needs: test
     if: always() && (needs.test.result == 'success' || needs.test.result == 'skipped')
-
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Python
-        uses: actions/setup-python@v5
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           cache: pip
-
-      - name: Build wheel package
-        run: |
+      - run: |
           pip install -U pip build wheel
           python -m build
-          
-          echo ""
-          echo "📦 Package built:"
           ls -lh dist/
-
-      - name: Upload wheel artifact
-        uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v4
         with:
           name: python-wheel
           path: dist/*.whl
           retention-days: 7
           if-no-files-found: error
 
-# ============================================================
-# DEPLOY
-# ============================================================
   deploy:
-    name: Déploiement sur Databricks
+    name: Deploy
     runs-on: ubuntu-latest
     needs: build
     environment: ${{ github.event.inputs.environment }}
-
     env:
       ENV_NAME: ${{ github.event.inputs.environment }}
       DEVELOPER_NAME: ${{ github.event.inputs.developer_name }}
-      
-      # Variables Databricks (depuis GitHub Variables)
       DATABRICKS_HOST: ${{ vars.DATABRICKS_HOST }}
-      
-      # Authentification Azure AD Service Principal (depuis GitHub Secrets)
       DATABRICKS_CLIENT_ID: ${{ secrets.ARM_CLIENT_ID }}
       DATABRICKS_CLIENT_SECRET: ${{ secrets.ARM_CLIENT_SECRET }}
       DATABRICKS_TENANT_ID: ${{ secrets.ARM_TENANT_ID }}
-
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Python
-        uses: actions/setup-python@v5
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
         with:
           python-version: ${{ env.PYTHON_VERSION }}
-
-      - name: Download wheel artifact
-        uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v4
         with:
           name: python-wheel
           path: dist/
-
-      # --------------------------------------------------------
-      # Install Databricks SDK
-      # --------------------------------------------------------
-      - name: Install Databricks SDK
+      - name: Install SDK
         run: |
-          pip install -U pip
-          pip install databricks-sdk
-          
-          echo ""
-          echo "✅ Databricks SDK installed"
-          python -c "import databricks.sdk; print(f'Version: {databricks.sdk.__version__}')"
-
-      # --------------------------------------------------------
-      # Create Python deployment script
-      # --------------------------------------------------------
-      - name: Create deployment script
+          pip install -U pip databricks-sdk
+          python -c "import databricks.sdk; print('SDK OK')"
+      
+      - name: Create deploy script
         run: |
           cat > deploy.py << 'EOF'
-          #!/usr/bin/env python3
-          """
-          Script de déploiement Databricks utilisant le SDK Python
-          """
-          import os
-          import sys
+          import os, sys
           from pathlib import Path
           from databricks.sdk import WorkspaceClient
           from databricks.sdk.core import DatabricksError
-
-          def main():
-              # Récupérer les variables d'environnement
-              host = os.getenv('DATABRICKS_HOST')
-              client_id = os.getenv('DATABRICKS_CLIENT_ID')
-              client_secret = os.getenv('DATABRICKS_CLIENT_SECRET')
-              tenant_id = os.getenv('DATABRICKS_TENANT_ID')
-              
-              catalog = os.getenv('BRONZE_CATALOG')
-              volume_path = os.getenv('VOLUME_PATH')
-              wheel_file = os.getenv('WHEEL_FILE')
-              wheel_name = os.getenv('WHEEL_NAME')
-              
-              print("🔍 Configuration:")
-              print(f"   Host: {host}")
-              print(f"   Client ID: {client_id[:8]}***")
-              print(f"   Catalog: {catalog}")
-              print(f"   Volume: {volume_path}")
-              print(f"   Package: {wheel_name}")
-              print()
-              
-              # Initialiser le client Databricks avec Azure SP
-              print("🔐 Connecting to Databricks...")
-              try:
-                  w = WorkspaceClient(
-                      host=host,
-                      azure_client_id=client_id,
-                      azure_client_secret=client_secret,
-                      azure_tenant_id=tenant_id
-                  )
-                  
-                  # Test de connexion
-                  current_user = w.current_user.me()
-                  print(f"✅ Connected as: {current_user.user_name}")
-                  print()
-              except Exception as e:
-                  print(f"❌ Connection failed: {e}")
-                  sys.exit(1)
-              
-              # Créer le répertoire dans le volume
-              print(f"📁 Creating directory: {volume_path}")
-              try:
-                  # Utiliser l'API Files pour créer le répertoire
-                  w.files.create_directory(volume_path)
-                  print("✅ Directory created")
-              except DatabricksError as e:
-                  if "RESOURCE_ALREADY_EXISTS" in str(e) or "already exists" in str(e).lower():
-                      print("⚠️  Directory already exists, continuing...")
-                  else:
-                      print(f"⚠️  Directory creation warning: {e}")
-              print()
-              
-              # Upload du wheel
-              print(f"📤 Uploading {wheel_name}...")
-              try:
-                  wheel_path = Path(wheel_file)
-                  destination = f"{volume_path}/{wheel_name}"
-                  
-                  with open(wheel_path, 'rb') as f:
-                      content = f.read()
-                  
-                  # Upload avec l'API Files
-                  w.files.upload(destination, content, overwrite=True)
-                  
-                  print(f"✅ Upload successful: {destination}")
-              except Exception as e:
-                  print(f"❌ Upload failed: {e}")
-                  sys.exit(1)
-              print()
-              
-              # Vérification
-              print("🔍 Verifying upload...")
-              try:
-                  files = list(w.files.list_directory_contents(volume_path))
-                  print(f"✅ Files in {volume_path}:")
-                  for file in files:
-                      print(f"   - {file.name} ({file.size} bytes)")
-              except Exception as e:
-                  print(f"⚠️  Verification warning: {e}")
-              print()
-              
-              print("╔════════════════════════════════════════════════════════╗")
-              print("║        ✅ DEPLOYMENT SUCCESSFUL                        ║")
-              print("╚════════════════════════════════════════════════════════╝")
-              print()
-              print("📦 To use this package in a Databricks notebook:")
-              print()
-              print(f"%pip install {volume_path}/{wheel_name}")
-              print()
-
-          if __name__ == "__main__":
-              main()
+          
+          host = os.getenv('DATABRICKS_HOST')
+          client_id = os.getenv('DATABRICKS_CLIENT_ID')
+          client_secret = os.getenv('DATABRICKS_CLIENT_SECRET')
+          tenant_id = os.getenv('DATABRICKS_TENANT_ID')
+          catalog = os.getenv('BRONZE_CATALOG')
+          volume_path = os.getenv('VOLUME_PATH')
+          wheel_file = os.getenv('WHEEL_FILE')
+          wheel_name = os.getenv('WHEEL_NAME')
+          
+          print(f"🔧 Config:\n   Host: {host}\n   Catalog: {catalog}\n   Volume: {volume_path}\n   Package: {wheel_name}\n")
+          
+          print("🔐 Connecting...")
+          w = WorkspaceClient(host=host, azure_client_id=client_id, azure_client_secret=client_secret, azure_tenant_id=tenant_id)
+          user = w.current_user.me()
+          print(f"✅ Connected as: {user.user_name}\n")
+          
+          print(f"📁 Creating directory: {volume_path}")
+          try:
+              w.files.create_directory(volume_path)
+              print("✅ Created")
+          except DatabricksError as e:
+              if "RESOURCE_ALREADY_EXISTS" in str(e) or "already exists" in str(e).lower():
+                  print("⚠️  Already exists")
+              else:
+                  print(f"⚠️  {e}")
+          print()
+          
+          print(f"📤 Uploading {wheel_name}...")
+          destination = f"{volume_path}/{wheel_name}"
+          with open(wheel_file, 'rb') as f:
+              w.files.upload(destination, f.read(), overwrite=True)
+          print(f"✅ Uploaded to: {destination}\n")
+          
+          print("🔍 Verifying...")
+          files = list(w.files.list_directory_contents(volume_path))
+          print(f"Files in {volume_path}:")
+          for f in files:
+              print(f"  - {f.name} ({f.size} bytes)")
+          print()
+          
+          print("╔═══════════════════════════════════════╗")
+          print("║   ✅ DEPLOYMENT SUCCESSFUL            ║")
+          print("╚═══════════════════════════════════════╝\n")
+          print(f"📦 Install in notebook:\n%pip install {destination}\n")
           EOF
-          
           chmod +x deploy.py
-          
-          echo "✅ Deployment script created"
-
-      # --------------------------------------------------------
-      # Compute deployment variables
-      # --------------------------------------------------------
-      - name: Compute deployment variables
+      
+      - name: Compute vars
         id: vars
         run: |
-          # Définir les variables de déploiement
           BRONZE_CATALOG="${CATALOG_PREFIX}_${ENV_NAME}_bronze"
-          VOLUME_BASE="/Volumes/${BRONZE_CATALOG}/artifacts/packages"
-          VOLUME_PATH="${VOLUME_BASE}/${DEVELOPER_NAME}"
-          
-          # Récupérer le nom du wheel
+          VOLUME_PATH="/Volumes/${BRONZE_CATALOG}/artifacts/packages/${DEVELOPER_NAME}"
           WHEEL_FILE=$(ls dist/*.whl | head -1)
           WHEEL_NAME=$(basename "$WHEEL_FILE")
           
-          # Exporter les variables
           echo "BRONZE_CATALOG=${BRONZE_CATALOG}" >> $GITHUB_OUTPUT
           echo "VOLUME_PATH=${VOLUME_PATH}" >> $GITHUB_OUTPUT
           echo "WHEEL_FILE=${WHEEL_FILE}" >> $GITHUB_OUTPUT
           echo "WHEEL_NAME=${WHEEL_NAME}" >> $GITHUB_OUTPUT
-          
-          # Exporter pour le script Python
           echo "BRONZE_CATALOG=${BRONZE_CATALOG}" >> $GITHUB_ENV
           echo "VOLUME_PATH=${VOLUME_PATH}" >> $GITHUB_ENV
           echo "WHEEL_FILE=${WHEEL_FILE}" >> $GITHUB_ENV
           echo "WHEEL_NAME=${WHEEL_NAME}" >> $GITHUB_ENV
           
-          # Afficher les informations
-          echo ""
-          echo "📦 Deployment variables:"
-          echo "   Catalog: ${BRONZE_CATALOG}"
-          echo "   Volume: ${VOLUME_PATH}"
-          echo "   Package: ${WHEEL_NAME}"
-
-      # --------------------------------------------------------
-      # Execute deployment
-      # --------------------------------------------------------
-      - name: Deploy to Databricks
-        run: |
-          echo ""
-          echo "🚀 Starting deployment..."
-          echo ""
-          
-          python deploy.py
-
-      # --------------------------------------------------------
-      # Deployment summary
-      # --------------------------------------------------------
-      - name: Deployment summary
+          echo "📦 Vars: Catalog=${BRONZE_CATALOG}, Volume=${VOLUME_PATH}, Package=${WHEEL_NAME}"
+      
+      - name: Deploy
+        run: python deploy.py
+      
+      - name: Summary
         if: always()
         run: |
-          WHEEL_NAME="${{ steps.vars.outputs.WHEEL_NAME }}"
-          BRONZE_CATALOG="${{ steps.vars.outputs.BRONZE_CATALOG }}"
-          VOLUME_PATH="${{ steps.vars.outputs.VOLUME_PATH }}"
-          
           echo ""
-          echo "╔════════════════════════════════════════════════════════╗"
-          echo "║        📊 DEPLOYMENT SUMMARY                           ║"
-          echo "╚════════════════════════════════════════════════════════╝"
-          echo ""
-          echo "📋 Configuration:"
-          echo "   • Environment    : ${{ env.ENV_NAME }}"
-          echo "   • Developer      : ${{ env.DEVELOPER_NAME }}"
-          echo "   • Catalog        : ${BRONZE_CATALOG}"
-          echo "   • Volume         : ${VOLUME_PATH}"
-          echo "   • Package        : ${WHEEL_NAME}"
-          echo ""
-          echo "🔗 Workspace:"
-          echo "   • URL            : ${{ env.DATABRICKS_HOST }}"
-          echo ""
-          echo "📝 Git Info:"
-          echo "   • Commit         : ${{ github.sha }}"
-          echo "   • Branch         : ${{ github.ref_name }}"
-          echo "   • Actor          : ${{ github.actor }}"
-          echo ""
-
-      # --------------------------------------------------------
-      # Notification
-      # --------------------------------------------------------
-      - name: Send notification
-        if: failure()
-        run: |
-          echo ""
-          echo "╔════════════════════════════════════════════════════════╗"
-          echo "║        ❌ DEPLOYMENT FAILED                            ║"
-          echo "╚════════════════════════════════════════════════════════╝"
-          echo ""
-          echo "Check the logs above for more details."
+          echo "╔═══════════════════════════════════════╗"
+          echo "║   📊 SUMMARY                          ║"
+          echo "╚═══════════════════════════════════════╝"
+          echo "Environment: ${{ env.ENV_NAME }}"
+          echo "Developer: ${{ env.DEVELOPER_NAME }}"
+          echo "Package: ${{ steps.vars.outputs.WHEEL_NAME }}"
+          echo "Location: ${{ steps.vars.outputs.VOLUME_PATH }}"
           echo ""
