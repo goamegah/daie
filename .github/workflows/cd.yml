@@ -136,24 +136,40 @@ jobs:
           databricks fs ls dbfs:/Volumes || databricks fs ls dbfs:/ || true
 
       - name: Configuration de Databricks CLI (Service Principal)
+        env:
+          ARM_CLIENT_ID: ${{ secrets.ARM_CLIENT_ID }}
+          ARM_CLIENT_SECRET: ${{ secrets.ARM_CLIENT_SECRET }}
+          ARM_TENANT_ID: ${{ secrets.ARM_TENANT_ID }}
+          DATABRICKS_HOST: ${{ vars.DATABRICKS_HOST }}
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
         run: |
-          # Authentification via Service Principal (OAuth)
-          # Le CLI utilise les variables d'environnement ARM_*
+          set -euo pipefail
           echo "[DEFAULT]" > ~/.databrickscfg
-          echo "host = ${{ env.DATABRICKS_HOST }}" >> ~/.databrickscfg
-          
-          # Obtenir un token OAuth via le Service Principal
-          TOKEN=$(curl -s -X POST \
-            "https://login.microsoftonline.com/${{ env.ARM_TENANT_ID }}/oauth2/v2.0/token" \
-            -H "Content-Type: application/x-www-form-urlencoded" \
-            -d "client_id=${{ env.ARM_CLIENT_ID }}" \
-            -d "client_secret=${{ env.ARM_CLIENT_SECRET }}" \
-            -d "scope=2ff814a6-3304-4ab8-85cb-cd0e6f879c1d/.default" \
-            -d "grant_type=client_credentials" | jq -r '.access_token')
-          
-          echo "token = $TOKEN" >> ~/.databrickscfg
-          
-          echo "✅ Authentification Service Principal configurée"
+          echo "host = ${DATABRICKS_HOST}" >> ~/.databrickscfg
+
+          if [ -n "${DATABRICKS_TOKEN:-}" ]; then
+            echo "Using DATABRICKS_TOKEN secret for authentication"
+            echo "token = ${DATABRICKS_TOKEN}" >> ~/.databrickscfg
+          else
+            echo "No DATABRICKS_TOKEN secret found — attempting Azure AD client credentials flow"
+            # Login with service principal
+            az login --service-principal -u "$ARM_CLIENT_ID" -p "$ARM_CLIENT_SECRET" --tenant "$ARM_TENANT_ID" >/dev/null
+
+            # Request an access token for the Databricks resource
+            TOKEN=$(az account get-access-token --resource 2ff814a6-3304-4ab8-85cb-cd0e6f879c1d --query accessToken -o tsv || true)
+            if [ -z "$TOKEN" ]; then
+              echo "Failed to obtain AAD token for Databricks via az. Ensure the service principal has the necessary permissions and the Databricks resource ID is allowed."
+              exit 1
+            fi
+
+            echo "token = $TOKEN" >> ~/.databrickscfg
+          fi
+
+          # Quick validation: try listing the target volume path (may return 403 if SP lacks workspace privileges)
+          echo "--- Validate Databricks auth by listing target volume ---"
+          databricks fs ls "dbfs:/Volumes" || databricks fs ls "dbfs:/" || true
+
+          echo "✅ Authentification configurée"
 
       - name: Définition des variables de déploiement
         id: vars
