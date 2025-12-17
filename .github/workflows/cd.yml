@@ -139,7 +139,7 @@ jobs:
           print(f"📤 Uploading {wheel_name}...")
           destination = f"{volume_path}/{wheel_name}"
           with open(wheel_file, 'rb') as f:
-              w.files.upload(destination, f.read(), overwrite=True)
+              w.files.upload(destination, f, overwrite=True)
           print(f"✅ Uploaded to: {destination}\n")
           
           print("🔍 Verifying...")
