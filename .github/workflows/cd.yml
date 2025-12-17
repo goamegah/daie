@@ -151,6 +151,11 @@ jobs:
       # Configure Databricks authentication
       # --------------------------------------------------------
       - name: Configure Databricks authentication
+        env:
+          DATABRICKS_HOST: ${{ env.DATABRICKS_HOST }}
+          ARM_CLIENT_ID: ${{ env.ARM_CLIENT_ID }}
+          ARM_CLIENT_SECRET: ${{ env.ARM_CLIENT_SECRET }}
+          ARM_TENANT_ID: ${{ env.ARM_TENANT_ID }}
         run: |
           # Vérifier les variables d'environnement requises
           if [[ -z "$DATABRICKS_HOST" ]]; then
@@ -164,21 +169,24 @@ jobs:
           fi
           
           # Nettoyer l'URL (enlever le https:// si présent)
-          DATABRICKS_HOST_CLEAN=$(echo "$DATABRICKS_HOST" | sed 's|https://||')
+          HOST_CLEAN=$(echo "$DATABRICKS_HOST" | sed 's|https://||')
           
-          # Créer le fichier de configuration Databricks
-          cat > ~/.databrickscfg <<EOF
-          [DEFAULT]
-          host = https://${DATABRICKS_HOST_CLEAN}
-          azure_client_id = ${ARM_CLIENT_ID}
-          azure_client_secret = ${ARM_CLIENT_SECRET}
-          azure_tenant_id = ${ARM_TENANT_ID}
-          EOF
+          # Créer le fichier de configuration Databricks (SANS indentation)
+          echo "[DEFAULT]" > ~/.databrickscfg
+          echo "host = https://${HOST_CLEAN}" >> ~/.databrickscfg
+          echo "azure_client_id = ${ARM_CLIENT_ID}" >> ~/.databrickscfg
+          echo "azure_client_secret = ${ARM_CLIENT_SECRET}" >> ~/.databrickscfg
+          echo "azure_tenant_id = ${ARM_TENANT_ID}" >> ~/.databrickscfg
           
           chmod 600 ~/.databrickscfg
           
+          echo ""
           echo "✅ Databricks config created"
-          echo "📋 Host: https://${DATABRICKS_HOST_CLEAN}"
+          echo "📋 Location: ~/.databrickscfg"
+          echo "📄 Content (sanitized):"
+          grep "^host" ~/.databrickscfg
+          echo "azure_client_id = ${ARM_CLIENT_ID:0:8}***"
+          echo ""
 
       # --------------------------------------------------------
       # Test Databricks connection
@@ -186,19 +194,35 @@ jobs:
       - name: Test Databricks connection
         run: |
           echo "🔍 Testing connection to Databricks workspace..."
+          echo ""
           
-          # Tester la connexion
-          if databricks workspace list / --profile DEFAULT > /dev/null 2>&1; then
+          # Afficher la version du CLI
+          echo "📦 Databricks CLI version:"
+          databricks --version
+          echo ""
+          
+          # Vérifier que le fichier de config existe
+          echo "📁 Config file check:"
+          ls -la ~/.databrickscfg
+          echo ""
+          
+          # Tester la connexion (avec verbose pour debug)
+          echo "🧪 Testing workspace connection..."
+          if databricks workspace list / --profile DEFAULT 2>&1; then
+            echo ""
             echo "✅ Connection successful"
           else
-            echo "⚠️  Workspace list failed, but continuing (might be permissions)"
+            echo ""
+            echo "⚠️  Workspace list might have failed (checking permissions...)"
+            
+            # Tester une autre commande plus basique
+            echo "🧪 Testing alternative connection..."
+            databricks fs ls dbfs:/ --profile DEFAULT || echo "Basic fs test also failed"
           fi
           
-          # Afficher les informations de connexion (sans les secrets)
           echo ""
           echo "📋 Connection info:"
           echo "   Host: $DATABRICKS_HOST"
-          echo "   Tenant: $ARM_TENANT_ID"
 
       # --------------------------------------------------------
       # Compute deployment variables
