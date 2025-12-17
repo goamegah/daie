@@ -111,13 +111,14 @@ jobs:
     env:
       ENV_NAME: ${{ github.event.inputs.environment }}
       DEVELOPER_NAME: ${{ github.event.inputs.developer_name }}
+      
+      # Variables Databricks (depuis GitHub Variables)
       DATABRICKS_HOST: ${{ vars.DATABRICKS_HOST }}
       
-      # Authentification Azure AD Service Principal
-      ARM_CLIENT_ID: ${{ secrets.ARM_CLIENT_ID }}
-      ARM_CLIENT_SECRET: ${{ secrets.ARM_CLIENT_SECRET }}
-      ARM_TENANT_ID: ${{ secrets.ARM_TENANT_ID }}
-      ARM_SUBSCRIPTION_ID: ${{ secrets.ARM_SUBSCRIPTION_ID }}
+      # Authentification Azure AD Service Principal (depuis GitHub Secrets)
+      DATABRICKS_CLIENT_ID: ${{ secrets.ARM_CLIENT_ID }}
+      DATABRICKS_CLIENT_SECRET: ${{ secrets.ARM_CLIENT_SECRET }}
+      DATABRICKS_TENANT_ID: ${{ secrets.ARM_TENANT_ID }}
 
     steps:
       - name: Checkout code
@@ -142,20 +143,14 @@ jobs:
           pip install -U pip
           pip install databricks-cli databricks-sdk
           
-          # Vérifier l'installation
-          databricks --version
           echo ""
           echo "✅ Databricks CLI installed"
+          databricks --version
 
       # --------------------------------------------------------
-      # Configure Databricks authentication
+      # Configure Databricks authentication via ENV VARS
       # --------------------------------------------------------
       - name: Configure Databricks authentication
-        env:
-          DATABRICKS_HOST: ${{ env.DATABRICKS_HOST }}
-          ARM_CLIENT_ID: ${{ env.ARM_CLIENT_ID }}
-          ARM_CLIENT_SECRET: ${{ env.ARM_CLIENT_SECRET }}
-          ARM_TENANT_ID: ${{ env.ARM_TENANT_ID }}
         run: |
           # Vérifier les variables d'environnement requises
           if [[ -z "$DATABRICKS_HOST" ]]; then
@@ -163,30 +158,18 @@ jobs:
             exit 1
           fi
           
-          if [[ -z "$ARM_CLIENT_ID" ]]; then
-            echo "❌ ARM_CLIENT_ID is not set"
+          if [[ -z "$DATABRICKS_CLIENT_ID" ]]; then
+            echo "❌ DATABRICKS_CLIENT_ID is not set"
             exit 1
           fi
           
-          # Nettoyer l'URL (enlever le https:// si présent)
-          HOST_CLEAN=$(echo "$DATABRICKS_HOST" | sed 's|https://||')
-          
-          # Créer le fichier de configuration Databricks (SANS indentation)
-          echo "[DEFAULT]" > ~/.databrickscfg
-          echo "host = https://${HOST_CLEAN}" >> ~/.databrickscfg
-          echo "azure_client_id = ${ARM_CLIENT_ID}" >> ~/.databrickscfg
-          echo "azure_client_secret = ${ARM_CLIENT_SECRET}" >> ~/.databrickscfg
-          echo "azure_tenant_id = ${ARM_TENANT_ID}" >> ~/.databrickscfg
-          
-          chmod 600 ~/.databrickscfg
-          
+          # Afficher les informations (sanitized)
           echo ""
-          echo "✅ Databricks config created"
-          echo "📋 Location: ~/.databrickscfg"
-          echo "📄 Content (sanitized):"
-          grep "^host" ~/.databrickscfg
-          echo "azure_client_id = ${ARM_CLIENT_ID:0:8}***"
+          echo "✅ Environment variables configured:"
+          echo "   DATABRICKS_HOST: $DATABRICKS_HOST"
+          echo "   DATABRICKS_CLIENT_ID: ${DATABRICKS_CLIENT_ID:0:8}***"
           echo ""
+          echo "ℹ️  Databricks CLI will use these environment variables for authentication"
 
       # --------------------------------------------------------
       # Test Databricks connection
@@ -196,33 +179,16 @@ jobs:
           echo "🔍 Testing connection to Databricks workspace..."
           echo ""
           
-          # Afficher la version du CLI
-          echo "📦 Databricks CLI version:"
-          databricks --version
-          echo ""
-          
-          # Vérifier que le fichier de config existe
-          echo "📁 Config file check:"
-          ls -la ~/.databrickscfg
-          echo ""
-          
-          # Tester la connexion (avec verbose pour debug)
+          # Test avec la commande workspace list
           echo "🧪 Testing workspace connection..."
-          if databricks workspace list / --profile DEFAULT 2>&1; then
+          if databricks workspace list / 2>&1 | head -5; then
             echo ""
             echo "✅ Connection successful"
           else
             echo ""
-            echo "⚠️  Workspace list might have failed (checking permissions...)"
-            
-            # Tester une autre commande plus basique
-            echo "🧪 Testing alternative connection..."
-            databricks fs ls dbfs:/ --profile DEFAULT || echo "Basic fs test also failed"
+            echo "❌ Connection failed"
+            exit 1
           fi
-          
-          echo ""
-          echo "📋 Connection info:"
-          echo "   Host: $DATABRICKS_HOST"
 
       # --------------------------------------------------------
       # Compute deployment variables
@@ -262,8 +228,7 @@ jobs:
           echo "📁 Creating volume directory: ${VOLUME_PATH}"
           
           # Créer le répertoire dans le volume Unity Catalog
-          # Note: la commande peut échouer si le répertoire existe déjà
-          databricks fs mkdirs "dbfs:${VOLUME_PATH}" --profile DEFAULT || {
+          databricks fs mkdirs "dbfs:${VOLUME_PATH}" || {
             echo "⚠️  Directory might already exist, continuing..."
           }
 
@@ -285,9 +250,7 @@ jobs:
           echo ""
           
           # Upload du fichier wheel avec overwrite
-          databricks fs cp "${WHEEL_FILE}" "dbfs:${VOLUME_PATH}/${WHEEL_NAME}" \
-            --overwrite \
-            --profile DEFAULT
+          databricks fs cp "${WHEEL_FILE}" "dbfs:${VOLUME_PATH}/${WHEEL_NAME}" --overwrite
           
           echo ""
           echo "✅ Upload successful"
@@ -305,7 +268,7 @@ jobs:
           echo ""
           
           # Lister le contenu du volume
-          if databricks fs ls "dbfs:${VOLUME_PATH}/" --profile DEFAULT; then
+          if databricks fs ls "dbfs:${VOLUME_PATH}/"; then
             echo ""
             echo "✅ Package verified in volume"
           else
