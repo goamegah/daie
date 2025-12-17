@@ -178,14 +178,18 @@ jobs:
       - name: Upload du wheel vers Unity Catalog Volume
         run: |
           WHEEL_FILE=$(ls dist/*.whl | head -1)
-          WHEEL_NAME=$(basename $WHEEL_FILE)
+          WHEEL_NAME=$(basename "$WHEEL_FILE")
           VOLUME_PATH="${{ steps.vars.outputs.VOLUME_PATH }}"
-          
           echo "📤 Upload de $WHEEL_NAME"
           echo "   Destination: $VOLUME_PATH/$WHEEL_NAME"
-          
           databricks fs cp "$WHEEL_FILE" "dbfs:$VOLUME_PATH/$WHEEL_NAME" --overwrite
-          
+          STATUS=$?
+          echo "Exit code: $STATUS"
+          databricks fs ls "dbfs:$VOLUME_PATH"
+          if [ $STATUS -ne 0 ]; then
+            echo "Erreur lors de l'upload du package"
+            exit $STATUS
+          fi
           echo ""
           echo "✅ Package uploadé avec succès!"
           echo ""
