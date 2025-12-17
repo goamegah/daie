@@ -136,59 +136,129 @@ jobs:
           path: dist/
 
       # --------------------------------------------------------
-      # Install Databricks CLI
+      # Install Databricks SDK
       # --------------------------------------------------------
-      - name: Install Databricks CLI
+      - name: Install Databricks SDK
         run: |
           pip install -U pip
-          pip install databricks-cli databricks-sdk
+          pip install databricks-sdk
           
           echo ""
-          echo "✅ Databricks CLI installed"
-          databricks --version
+          echo "✅ Databricks SDK installed"
+          python -c "import databricks.sdk; print(f'Version: {databricks.sdk.__version__}')"
 
       # --------------------------------------------------------
-      # Configure Databricks authentication via ENV VARS
+      # Create Python deployment script
       # --------------------------------------------------------
-      - name: Configure Databricks authentication
+      - name: Create deployment script
         run: |
-          # Vérifier les variables d'environnement requises
-          if [[ -z "$DATABRICKS_HOST" ]]; then
-            echo "❌ DATABRICKS_HOST is not set"
-            exit 1
-          fi
-          
-          if [[ -z "$DATABRICKS_CLIENT_ID" ]]; then
-            echo "❌ DATABRICKS_CLIENT_ID is not set"
-            exit 1
-          fi
-          
-          # Afficher les informations (sanitized)
-          echo ""
-          echo "✅ Environment variables configured:"
-          echo "   DATABRICKS_HOST: $DATABRICKS_HOST"
-          echo "   DATABRICKS_CLIENT_ID: ${DATABRICKS_CLIENT_ID:0:8}***"
-          echo ""
-          echo "ℹ️  Databricks CLI will use these environment variables for authentication"
+          cat > deploy.py << 'EOF'
+          #!/usr/bin/env python3
+          """
+          Script de déploiement Databricks utilisant le SDK Python
+          """
+          import os
+          import sys
+          from pathlib import Path
+          from databricks.sdk import WorkspaceClient
+          from databricks.sdk.core import DatabricksError
 
-      # --------------------------------------------------------
-      # Test Databricks connection
-      # --------------------------------------------------------
-      - name: Test Databricks connection
-        run: |
-          echo "🔍 Testing connection to Databricks workspace..."
-          echo ""
+          def main():
+              # Récupérer les variables d'environnement
+              host = os.getenv('DATABRICKS_HOST')
+              client_id = os.getenv('DATABRICKS_CLIENT_ID')
+              client_secret = os.getenv('DATABRICKS_CLIENT_SECRET')
+              tenant_id = os.getenv('DATABRICKS_TENANT_ID')
+              
+              catalog = os.getenv('BRONZE_CATALOG')
+              volume_path = os.getenv('VOLUME_PATH')
+              wheel_file = os.getenv('WHEEL_FILE')
+              wheel_name = os.getenv('WHEEL_NAME')
+              
+              print("🔍 Configuration:")
+              print(f"   Host: {host}")
+              print(f"   Client ID: {client_id[:8]}***")
+              print(f"   Catalog: {catalog}")
+              print(f"   Volume: {volume_path}")
+              print(f"   Package: {wheel_name}")
+              print()
+              
+              # Initialiser le client Databricks avec Azure SP
+              print("🔐 Connecting to Databricks...")
+              try:
+                  w = WorkspaceClient(
+                      host=host,
+                      azure_client_id=client_id,
+                      azure_client_secret=client_secret,
+                      azure_tenant_id=tenant_id
+                  )
+                  
+                  # Test de connexion
+                  current_user = w.current_user.me()
+                  print(f"✅ Connected as: {current_user.user_name}")
+                  print()
+              except Exception as e:
+                  print(f"❌ Connection failed: {e}")
+                  sys.exit(1)
+              
+              # Créer le répertoire dans le volume
+              print(f"📁 Creating directory: {volume_path}")
+              try:
+                  # Utiliser l'API Files pour créer le répertoire
+                  w.files.create_directory(volume_path)
+                  print("✅ Directory created")
+              except DatabricksError as e:
+                  if "RESOURCE_ALREADY_EXISTS" in str(e) or "already exists" in str(e).lower():
+                      print("⚠️  Directory already exists, continuing...")
+                  else:
+                      print(f"⚠️  Directory creation warning: {e}")
+              print()
+              
+              # Upload du wheel
+              print(f"📤 Uploading {wheel_name}...")
+              try:
+                  wheel_path = Path(wheel_file)
+                  destination = f"{volume_path}/{wheel_name}"
+                  
+                  with open(wheel_path, 'rb') as f:
+                      content = f.read()
+                  
+                  # Upload avec l'API Files
+                  w.files.upload(destination, content, overwrite=True)
+                  
+                  print(f"✅ Upload successful: {destination}")
+              except Exception as e:
+                  print(f"❌ Upload failed: {e}")
+                  sys.exit(1)
+              print()
+              
+              # Vérification
+              print("🔍 Verifying upload...")
+              try:
+                  files = list(w.files.list_directory_contents(volume_path))
+                  print(f"✅ Files in {volume_path}:")
+                  for file in files:
+                      print(f"   - {file.name} ({file.size} bytes)")
+              except Exception as e:
+                  print(f"⚠️  Verification warning: {e}")
+              print()
+              
+              print("╔════════════════════════════════════════════════════════╗")
+              print("║        ✅ DEPLOYMENT SUCCESSFUL                        ║")
+              print("╚════════════════════════════════════════════════════════╝")
+              print()
+              print("📦 To use this package in a Databricks notebook:")
+              print()
+              print(f"%pip install {volume_path}/{wheel_name}")
+              print()
+
+          if __name__ == "__main__":
+              main()
+          EOF
           
-          # Test avec la commande workspace list
-          echo "🧪 Testing workspace connection..."
-          if databricks workspace list / 2>&1 | head -5; then
-            echo ""
-            echo "✅ Connection successful"
-          else
-            echo ""
-            echo "❌ Connection failed"
-            exit 1
-          fi
+          chmod +x deploy.py
+          
+          echo "✅ Deployment script created"
 
       # --------------------------------------------------------
       # Compute deployment variables
@@ -211,6 +281,12 @@ jobs:
           echo "WHEEL_FILE=${WHEEL_FILE}" >> $GITHUB_OUTPUT
           echo "WHEEL_NAME=${WHEEL_NAME}" >> $GITHUB_OUTPUT
           
+          # Exporter pour le script Python
+          echo "BRONZE_CATALOG=${BRONZE_CATALOG}" >> $GITHUB_ENV
+          echo "VOLUME_PATH=${VOLUME_PATH}" >> $GITHUB_ENV
+          echo "WHEEL_FILE=${WHEEL_FILE}" >> $GITHUB_ENV
+          echo "WHEEL_NAME=${WHEEL_NAME}" >> $GITHUB_ENV
+          
           # Afficher les informations
           echo ""
           echo "📦 Deployment variables:"
@@ -219,63 +295,15 @@ jobs:
           echo "   Package: ${WHEEL_NAME}"
 
       # --------------------------------------------------------
-      # Create Volume directory structure
+      # Execute deployment
       # --------------------------------------------------------
-      - name: Create Volume directory
+      - name: Deploy to Databricks
         run: |
-          VOLUME_PATH="${{ steps.vars.outputs.VOLUME_PATH }}"
-          
-          echo "📁 Creating volume directory: ${VOLUME_PATH}"
-          
-          # Créer le répertoire dans le volume Unity Catalog
-          databricks fs mkdirs "dbfs:${VOLUME_PATH}" || {
-            echo "⚠️  Directory might already exist, continuing..."
-          }
-
-      # --------------------------------------------------------
-      # Upload wheel to Unity Catalog Volume
-      # --------------------------------------------------------
-      - name: Upload wheel to Unity Catalog Volume
-        run: |
-          set -e
-          
-          WHEEL_FILE="${{ steps.vars.outputs.WHEEL_FILE }}"
-          VOLUME_PATH="${{ steps.vars.outputs.VOLUME_PATH }}"
-          WHEEL_NAME="${{ steps.vars.outputs.WHEEL_NAME }}"
-          
           echo ""
-          echo "📤 Uploading wheel package..."
-          echo "   Source: ${WHEEL_FILE}"
-          echo "   Destination: dbfs:${VOLUME_PATH}/${WHEEL_NAME}"
+          echo "🚀 Starting deployment..."
           echo ""
           
-          # Upload du fichier wheel avec overwrite
-          databricks fs cp "${WHEEL_FILE}" "dbfs:${VOLUME_PATH}/${WHEEL_NAME}" --overwrite
-          
-          echo ""
-          echo "✅ Upload successful"
-
-      # --------------------------------------------------------
-      # Verify upload
-      # --------------------------------------------------------
-      - name: Verify upload
-        run: |
-          VOLUME_PATH="${{ steps.vars.outputs.VOLUME_PATH }}"
-          WHEEL_NAME="${{ steps.vars.outputs.WHEEL_NAME }}"
-          
-          echo ""
-          echo "🔍 Verifying upload..."
-          echo ""
-          
-          # Lister le contenu du volume
-          if databricks fs ls "dbfs:${VOLUME_PATH}/"; then
-            echo ""
-            echo "✅ Package verified in volume"
-          else
-            echo ""
-            echo "❌ Failed to verify package"
-            exit 1
-          fi
+          python deploy.py
 
       # --------------------------------------------------------
       # Deployment summary
@@ -289,38 +317,35 @@ jobs:
           
           echo ""
           echo "╔════════════════════════════════════════════════════════╗"
-          echo "║        ✅ DÉPLOIEMENT DATABRICKS TERMINÉ               ║"
+          echo "║        📊 DEPLOYMENT SUMMARY                           ║"
           echo "╚════════════════════════════════════════════════════════╝"
           echo ""
-          echo "📋 Informations de déploiement:"
+          echo "📋 Configuration:"
           echo "   • Environment    : ${{ env.ENV_NAME }}"
           echo "   • Developer      : ${{ env.DEVELOPER_NAME }}"
           echo "   • Catalog        : ${BRONZE_CATALOG}"
           echo "   • Volume         : ${VOLUME_PATH}"
           echo "   • Package        : ${WHEEL_NAME}"
           echo ""
-          echo "🔗 Databricks:"
-          echo "   • Workspace      : ${{ env.DATABRICKS_HOST }}"
+          echo "🔗 Workspace:"
+          echo "   • URL            : ${{ env.DATABRICKS_HOST }}"
           echo ""
-          echo "📝 Git:"
+          echo "📝 Git Info:"
           echo "   • Commit         : ${{ github.sha }}"
           echo "   • Branch         : ${{ github.ref_name }}"
           echo "   • Actor          : ${{ github.actor }}"
           echo ""
-          echo "╔════════════════════════════════════════════════════════╗"
-          echo "║  📦 INSTALLATION DANS UN NOTEBOOK DATABRICKS          ║"
-          echo "╚════════════════════════════════════════════════════════╝"
-          echo ""
-          echo "%pip install /Volumes/${BRONZE_CATALOG}/artifacts/packages/${{ env.DEVELOPER_NAME }}/${WHEEL_NAME}"
-          echo ""
-          echo "╚════════════════════════════════════════════════════════╝"
-          echo ""
 
       # --------------------------------------------------------
-      # Notification (optionnel)
+      # Notification
       # --------------------------------------------------------
       - name: Send notification
         if: failure()
         run: |
-          echo "❌ Deployment failed!"
+          echo ""
+          echo "╔════════════════════════════════════════════════════════╗"
+          echo "║        ❌ DEPLOYMENT FAILED                            ║"
+          echo "╚════════════════════════════════════════════════════════╝"
+          echo ""
           echo "Check the logs above for more details."
+          echo ""
