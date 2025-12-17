@@ -163,18 +163,22 @@ jobs:
             exit 1
           fi
           
+          # Nettoyer l'URL (enlever le https:// si présent)
+          DATABRICKS_HOST_CLEAN=$(echo "$DATABRICKS_HOST" | sed 's|https://||')
+          
           # Créer le fichier de configuration Databricks
-          mkdir -p ~/.databricks
-          cat <<EOF > ~/.databrickscfg
+          cat > ~/.databrickscfg <<EOF
           [DEFAULT]
-          host = $DATABRICKS_HOST
-          azure_client_id = $ARM_CLIENT_ID
-          azure_client_secret = $ARM_CLIENT_SECRET
-          azure_tenant_id = $ARM_TENANT_ID
+          host = https://${DATABRICKS_HOST_CLEAN}
+          azure_client_id = ${ARM_CLIENT_ID}
+          azure_client_secret = ${ARM_CLIENT_SECRET}
+          azure_tenant_id = ${ARM_TENANT_ID}
           EOF
           
           chmod 600 ~/.databrickscfg
+          
           echo "✅ Databricks config created"
+          echo "📋 Host: https://${DATABRICKS_HOST_CLEAN}"
 
       # --------------------------------------------------------
       # Test Databricks connection
