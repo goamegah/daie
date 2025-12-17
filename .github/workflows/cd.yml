@@ -79,9 +79,9 @@ jobs:
       ENV_NAME: ${{ github.event.inputs.environment }}
       DEVELOPER_NAME: ${{ github.event.inputs.developer_name }}
       DATABRICKS_HOST: ${{ vars.DATABRICKS_HOST }}
-      DATABRICKS_CLIENT_ID: ${{ secrets.ARM_CLIENT_ID }}
-      DATABRICKS_CLIENT_SECRET: ${{ secrets.ARM_CLIENT_SECRET }}
-      DATABRICKS_TENANT_ID: ${{ secrets.ARM_TENANT_ID }}
+      AZURE_CLIENT_ID: ${{ secrets.ARM_CLIENT_ID }}
+      AZURE_CLIENT_SECRET: ${{ secrets.ARM_CLIENT_SECRET }}
+      AZURE_TENANT_ID: ${{ secrets.ARM_TENANT_ID }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -104,10 +104,15 @@ jobs:
           from databricks.sdk import WorkspaceClient
           from databricks.sdk.core import DatabricksError
           
+          # Nettoyer les variables conflictuelles
+          for key in ['DATABRICKS_CLIENT_ID', 'DATABRICKS_CLIENT_SECRET']:
+              if key in os.environ:
+                  del os.environ[key]
+          
           host = os.getenv('DATABRICKS_HOST')
-          client_id = os.getenv('DATABRICKS_CLIENT_ID')
-          client_secret = os.getenv('DATABRICKS_CLIENT_SECRET')
-          tenant_id = os.getenv('DATABRICKS_TENANT_ID')
+          client_id = os.getenv('AZURE_CLIENT_ID')
+          client_secret = os.getenv('AZURE_CLIENT_SECRET')
+          tenant_id = os.getenv('AZURE_TENANT_ID')
           catalog = os.getenv('BRONZE_CATALOG')
           volume_path = os.getenv('VOLUME_PATH')
           wheel_file = os.getenv('WHEEL_FILE')
