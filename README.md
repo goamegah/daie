@@ -13,5 +13,5 @@ pip install -e . && pip install -r dev-requirements.txt
 ```bash
 python -m venv .venv/dbw-ut
 source .venv/dbw-ut/bin/activate
-pip install -e . && &&pip uninstall -y -r test-excluded-requirements.txt && pip install -r test-requirements.txt
+pip install -e . && pip uninstall -y -r test-excluded-requirements.txt && pip install -r test-requirements.txt
 ```
