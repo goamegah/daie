@@ -103,7 +103,7 @@ resource "databricks_external_location" "bronze" {
 	url             = "abfss://bronze@${azurerm_storage_account.this.name}.dfs.core.windows.net/"
 	credential_name = databricks_storage_credential.this.name
 	comment         = "External location Bronze"
-    force_destroy   = true # <-
+  force_destroy   = true # <-
 
 	depends_on = [databricks_storage_credential.this]
 }
@@ -114,7 +114,7 @@ resource "databricks_external_location" "silver" {
 	url             = "abfss://silver@${azurerm_storage_account.this.name}.dfs.core.windows.net/"
 	credential_name = databricks_storage_credential.this.name
 	comment         = "External location Silver"
-    force_destroy   = true # <-
+  force_destroy   = true # <-
 
 	depends_on = [databricks_storage_credential.this]
 }
@@ -125,7 +125,7 @@ resource "databricks_external_location" "gold" {
 	url             = "abfss://gold@${azurerm_storage_account.this.name}.dfs.core.windows.net/"
 	credential_name = databricks_storage_credential.this.name
 	comment         = "External location Gold"
-    force_destroy   = true # <-
+  force_destroy   = true # <-
 
 	depends_on = [databricks_storage_credential.this]
 }
@@ -141,7 +141,7 @@ resource "databricks_catalog" "bronze" {
 	name         = local.catalog_bronze
 	comment      = "Catalog Bronze - Données brutes"
 	storage_root = "abfss://bronze@${azurerm_storage_account.this.name}.dfs.core.windows.net/"
-    force_destroy   = true # <-
+  force_destroy   = true # <-
 
 	properties = {
 		purpose = "bronze"
@@ -156,7 +156,7 @@ resource "databricks_catalog" "silver" {
 	name         = local.catalog_silver
 	comment      = "Catalog Silver - Données curées"
 	storage_root = "abfss://silver@${azurerm_storage_account.this.name}.dfs.core.windows.net/"
-    force_destroy   = true # <-
+  force_destroy   = true # <-
 	properties = {
 		purpose = "silver"
 	}
@@ -170,7 +170,7 @@ resource "databricks_catalog" "gold" {
 	name         = local.catalog_gold
 	comment      = "Catalog Gold - Données agrégées"
 	storage_root = "abfss://gold@${azurerm_storage_account.this.name}.dfs.core.windows.net/"
-    force_destroy   = true # <-
+  force_destroy   = true # <-
 	properties = {
 		purpose = "gold"
 	}
