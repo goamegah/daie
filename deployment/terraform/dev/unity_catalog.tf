@@ -103,7 +103,8 @@ resource "databricks_external_location" "bronze" {
 	url             = "abfss://bronze@${azurerm_storage_account.this.name}.dfs.core.windows.net/"
 	credential_name = databricks_storage_credential.this.name
 	comment         = "External location Bronze"
-  
+    force_destroy   = true # <-
+
 	depends_on = [databricks_storage_credential.this]
 }
 #
@@ -113,7 +114,8 @@ resource "databricks_external_location" "silver" {
 	url             = "abfss://silver@${azurerm_storage_account.this.name}.dfs.core.windows.net/"
 	credential_name = databricks_storage_credential.this.name
 	comment         = "External location Silver"
-  
+    force_destroy   = true # <-
+
 	depends_on = [databricks_storage_credential.this]
 }
 #
@@ -123,7 +125,8 @@ resource "databricks_external_location" "gold" {
 	url             = "abfss://gold@${azurerm_storage_account.this.name}.dfs.core.windows.net/"
 	credential_name = databricks_storage_credential.this.name
 	comment         = "External location Gold"
-  
+    force_destroy   = true # <-
+
 	depends_on = [databricks_storage_credential.this]
 }
 
@@ -138,6 +141,8 @@ resource "databricks_catalog" "bronze" {
 	name         = local.catalog_bronze
 	comment      = "Catalog Bronze - Données brutes"
 	storage_root = "abfss://bronze@${azurerm_storage_account.this.name}.dfs.core.windows.net/"
+    force_destroy   = true # <-
+
 	properties = {
 		purpose = "bronze"
 	}
@@ -151,6 +156,7 @@ resource "databricks_catalog" "silver" {
 	name         = local.catalog_silver
 	comment      = "Catalog Silver - Données curées"
 	storage_root = "abfss://silver@${azurerm_storage_account.this.name}.dfs.core.windows.net/"
+    force_destroy   = true # <-
 	properties = {
 		purpose = "silver"
 	}
@@ -164,6 +170,7 @@ resource "databricks_catalog" "gold" {
 	name         = local.catalog_gold
 	comment      = "Catalog Gold - Données agrégées"
 	storage_root = "abfss://gold@${azurerm_storage_account.this.name}.dfs.core.windows.net/"
+    force_destroy   = true # <-
 	properties = {
 		purpose = "gold"
 	}
@@ -180,6 +187,7 @@ resource "databricks_schema" "artifacts" {
 	catalog_name = databricks_catalog.bronze.name
 	name         = "artifacts"
 	comment      = "Schema pour les artifacts"
+    force_destroy   = true # <-
 }
 
 # ==============================================================================
@@ -195,94 +203,146 @@ resource "databricks_volume" "packages" {
 }
 
 # ==============================================================================
-# Grants (optionnel - décommenter si vous utilisez un SP)
+# Unity Catalog Configuration avec Grants automatisés
 # ==============================================================================
-# resource "databricks_grants" "metastore" {
-#   provider  = databricks.workspace
-#   metastore = databricks_metastore.this.id
-#   
-#   grant {
-#     principal  = databricks_service_principal.sp.application_id
-#     privileges = ["CREATE_CATALOG", "USE_CATALOG"]
-#   }
-# }
-# 
-# resource "databricks_grants" "catalog_bronze" {
-#   provider = databricks.workspace
-#   catalog  = databricks_catalog.bronze.name
-#   
-#   grant {
-#     principal  = databricks_service_principal.sp.application_id
-#     privileges = ["USE_CATALOG", "USE_SCHEMA", "CREATE_SCHEMA", "CREATE_TABLE", "CREATE_VOLUME"]
-#   }
-# }
-# 
-# resource "databricks_grants" "catalog_silver" {
-#   provider = databricks.workspace
-#   catalog  = databricks_catalog.silver.name
-#   
-#   grant {
-#     principal  = databricks_service_principal.sp.application_id
-#     privileges = ["USE_CATALOG", "USE_SCHEMA", "CREATE_SCHEMA", "CREATE_TABLE"]
-#   }
-# }
-# 
-# resource "databricks_grants" "catalog_gold" {
-#   provider = databricks.workspace
-#   catalog  = databricks_catalog.gold.name
-#   
-#   grant {
-#     principal  = databricks_service_principal.sp.application_id
-#     privileges = ["USE_CATALOG", "USE_SCHEMA", "CREATE_SCHEMA", "CREATE_TABLE"]
-#   }
-# }
-# 
-# resource "databricks_grants" "schema_artifacts" {
-#   provider = databricks.workspace
-#   schema   = "${databricks_catalog.bronze.name}.${databricks_schema.artifacts.name}"
-#   
-#   grant {
-#     principal  = databricks_service_principal.sp.application_id
-#     privileges = ["USE_SCHEMA", "CREATE_TABLE", "CREATE_VOLUME", "READ_VOLUME", "WRITE_VOLUME"]
-#   }
-# }
-# 
-# resource "databricks_grants" "volume_packages" {
-#   provider = databricks.workspace
-#   volume   = "${databricks_catalog.bronze.name}.${databricks_schema.artifacts.name}.${databricks_volume.packages.name}"
-#   
-#   grant {
-#     principal  = databricks_service_principal.sp.application_id
-#     privileges = ["READ_VOLUME", "WRITE_VOLUME"]
-#   }
-# }
-# 
-# resource "databricks_grants" "external_location_bronze" {
-#   provider          = databricks.workspace
-#   external_location = databricks_external_location.bronze.name
-#   
-#   grant {
-#     principal  = databricks_service_principal.sp.application_id
-#     privileges = ["CREATE_EXTERNAL_TABLE", "READ_FILES", "WRITE_FILES"]
-#   }
-# }
-# 
-# resource "databricks_grants" "external_location_silver" {
-#   provider          = databricks.workspace
-#   external_location = databricks_external_location.silver.name
-#   
-#   grant {
-#     principal  = databricks_service_principal.sp.application_id
-#     privileges = ["CREATE_EXTERNAL_TABLE", "READ_FILES", "WRITE_FILES"]
-#   }
-# }
-# 
-# resource "databricks_grants" "external_location_gold" {
-#   provider          = databricks.workspace
-#   external_location = databricks_external_location.gold.name
-#   
-#   grant {
-#     principal  = databricks_service_principal.sp.application_id
-#     privileges = ["CREATE_EXTERNAL_TABLE", "READ_FILES", "WRITE_FILES"]
-#   }
-# }
+
+# ... (gardez vos ressources existantes) ...
+
+# ==============================================================================
+# Service Principal dans Databricks
+# ==============================================================================
+resource "databricks_service_principal" "github_actions" {
+  provider       = databricks.workspace
+  application_id = var.sp_client_id
+  display_name   = "SP GitHub Actions - ${var.environment}"
+}
+
+# ==============================================================================
+# Grants - Permissions automatisées
+# ==============================================================================
+
+# Grant sur le catalog Bronze
+resource "databricks_grants" "catalog_bronze" {
+  provider = databricks.workspace
+  catalog  = databricks_catalog.bronze.name
+  
+  grant {
+    principal  = databricks_service_principal.github_actions.application_id
+    privileges = ["USE_CATALOG", "USE_SCHEMA", "CREATE_SCHEMA", "CREATE_TABLE", "CREATE_VOLUME"]
+  }
+  
+  depends_on = [
+    databricks_service_principal.github_actions,
+    databricks_catalog.bronze
+  ]
+}
+
+# Grant sur le catalog Silver
+resource "databricks_grants" "catalog_silver" {
+  provider = databricks.workspace
+  catalog  = databricks_catalog.silver.name
+  
+  grant {
+    principal  = databricks_service_principal.github_actions.application_id
+    privileges = ["USE_CATALOG", "USE_SCHEMA", "CREATE_SCHEMA", "CREATE_TABLE"]
+  }
+  
+  depends_on = [
+    databricks_service_principal.github_actions,
+    databricks_catalog.silver
+  ]
+}
+
+# Grant sur le catalog Gold
+resource "databricks_grants" "catalog_gold" {
+  provider = databricks.workspace
+  catalog  = databricks_catalog.gold.name
+  
+  grant {
+    principal  = databricks_service_principal.github_actions.application_id
+    privileges = ["USE_CATALOG", "USE_SCHEMA", "CREATE_SCHEMA", "CREATE_TABLE"]
+  }
+  
+  depends_on = [
+    databricks_service_principal.github_actions,
+    databricks_catalog.gold
+  ]
+}
+
+# Grant sur le schema artifacts (pour les packages)
+resource "databricks_grants" "schema_artifacts" {
+  provider = databricks.workspace
+  schema   = "${databricks_catalog.bronze.name}.${databricks_schema.artifacts.name}"
+  
+  grant {
+    principal  = databricks_service_principal.github_actions.application_id
+    privileges = ["USE_SCHEMA", "CREATE_TABLE", "CREATE_VOLUME", "READ_VOLUME", "WRITE_VOLUME"]
+  }
+  
+  depends_on = [
+    databricks_service_principal.github_actions,
+    databricks_schema.artifacts
+  ]
+}
+
+# Grant sur le volume packages (crucial pour le CD)
+resource "databricks_grants" "volume_packages" {
+  provider = databricks.workspace
+  volume   = "${databricks_catalog.bronze.name}.${databricks_schema.artifacts.name}.${databricks_volume.packages.name}"
+  
+  grant {
+    principal  = databricks_service_principal.github_actions.application_id
+    privileges = ["READ_VOLUME", "WRITE_VOLUME"]
+  }
+  
+  depends_on = [
+    databricks_service_principal.github_actions,
+    databricks_volume.packages
+  ]
+}
+
+# Grant sur les External Locations
+resource "databricks_grants" "external_location_bronze" {
+  provider          = databricks.workspace
+  external_location = databricks_external_location.bronze.name
+  
+  grant {
+    principal  = databricks_service_principal.github_actions.application_id
+    privileges = ["CREATE_EXTERNAL_TABLE", "READ_FILES", "WRITE_FILES"]
+  }
+  
+  depends_on = [
+    databricks_service_principal.github_actions,
+    databricks_external_location.bronze
+  ]
+}
+
+resource "databricks_grants" "external_location_silver" {
+  provider          = databricks.workspace
+  external_location = databricks_external_location.silver.name
+  
+  grant {
+    principal  = databricks_service_principal.github_actions.application_id
+    privileges = ["CREATE_EXTERNAL_TABLE", "READ_FILES", "WRITE_FILES"]
+  }
+  
+  depends_on = [
+    databricks_service_principal.github_actions,
+    databricks_external_location.silver
+  ]
+}
+
+resource "databricks_grants" "external_location_gold" {
+  provider          = databricks.workspace
+  external_location = databricks_external_location.gold.name
+  
+  grant {
+    principal  = databricks_service_principal.github_actions.application_id
+    privileges = ["CREATE_EXTERNAL_TABLE", "READ_FILES", "WRITE_FILES"]
+  }
+  
+  depends_on = [
+    databricks_service_principal.github_actions,
+    databricks_external_location.gold
+  ]
+}
