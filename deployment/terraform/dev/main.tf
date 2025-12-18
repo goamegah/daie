@@ -2,7 +2,7 @@
 # Locals - Conventions de nommage
 # ==============================================================================
 locals {
-  # Préfixe : <project>-chn-<env>
+  # PrÃ©fixe : <project>-chn-<env>
   name_prefix = "${var.project}-chn-${var.environment}"
   
   # Noms des ressources
@@ -92,8 +92,8 @@ resource "azurerm_databricks_access_connector" "this" {
 # ==============================================================================
 # NOTE : Role Assignments pour Access Connector et SP
 # ==============================================================================
-# Ces role assignments nécessitent le rôle "User Access Administrator"
-# Ils seront créés MANUELLEMENT via Azure Portal ou CLI :
+# Ces role assignments nÃ©cessitent le rÃ´le "User Access Administrator"
+# Ils seront crÃ©Ã©s MANUELLEMENT via Azure Portal ou CLI :
 #
 # 1. Storage Blob Data Contributor pour Access Connector :
 # az role assignment create \

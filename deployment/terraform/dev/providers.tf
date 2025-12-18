@@ -18,6 +18,10 @@ terraform {
       source  = "databricks/databricks"
       version = "~> 1.30"
     }
+    null = {
+      source  = "hashicorp/null"
+      version = "~> 3.2"
+    }
   }
 }
 

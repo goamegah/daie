@@ -313,7 +313,8 @@ resource "databricks_grants" "external_location_bronze" {
   
   depends_on = [
     databricks_service_principal.github_actions,
-    databricks_external_location.bronze
+    databricks_external_location.bronze,
+    null_resource.grant_storage_access # to ensure access connector setup is done
   ]
 }
 
@@ -328,7 +329,8 @@ resource "databricks_grants" "external_location_silver" {
   
   depends_on = [
     databricks_service_principal.github_actions,
-    databricks_external_location.silver
+    databricks_external_location.silver,
+    null_resource.grant_storage_access # to ensure access connector setup is done
   ]
 }
 
@@ -343,6 +345,7 @@ resource "databricks_grants" "external_location_gold" {
   
   depends_on = [
     databricks_service_principal.github_actions,
-    databricks_external_location.gold
+    databricks_external_location.gold,
+    null_resource.grant_storage_access # to ensure access connector setup is done
   ]
 }
