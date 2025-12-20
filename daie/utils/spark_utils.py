@@ -118,7 +118,11 @@ def get_subscription_id_key(env):
     return env_config.get(env).get(SUBSCRIPTION_ID)
 
 
-ENDPOINT = f"https://login.microsoftonline.com/{get_tenant_id(DEV)}/oauth2/token"
+def get_endpoint(env):
+    return f"https://login.microsoftonline.com/{get_tenant_id(env)}/oauth2/token"
+
+
+# ENDPOINT = f"https://login.microsoftonline.com/{get_tenant_id(DEV)}/oauth2/token"
 
 
 def get_dbutils():
@@ -165,7 +169,7 @@ def get_spark_session() -> SparkSession:
         spark.conf.set(f"fs.azure.account.oauth.provider.type.{storage_account}.dfs.core.windows.net", "org.apache.hadoop.fs.azurebfs.oauth2.ClientCredsTokenProvider")
         spark.conf.set(f"fs.azure.account.oauth2.client.id.{storage_account}.dfs.core.windows.net", get_client_id(env))
         spark.conf.set(f"fs.azure.account.oauth2.client.secret.{storage_account}.dfs.core.windows.net", dbutils.secrets.get(scope=SCOPE_NAME, key=get_client_secret_key(env)))
-        spark.conf.set(f"fs.azure.account.oauth2.client.endpoint.{storage_account}.dfs.core.windows.net", ENDPOINT)
+        spark.conf.set(f"fs.azure.account.oauth2.client.endpoint.{storage_account}.dfs.core.windows.net", get_endpoint(env))
     else:
         # Spark session for Unit Tests
         # specific configuration to optimise perfs for unit tests
