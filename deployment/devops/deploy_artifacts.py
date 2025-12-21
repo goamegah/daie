@@ -20,7 +20,8 @@ sys.path.insert(0, str(project_root))
 
 def create_volume_if_not_exists(workspace_client: WorkspaceClient, catalog: str, schema: str, volume: str) -> None:
     """
-    Crée un volume Unity Catalog s'il n'existe pas.
+    Vérifie que le volume Unity Catalog existe.
+    Note: Le volume doit être créé manuellement ou via Terraform avant le premier déploiement.
     
     Args:
         workspace_client: Client Databricks SDK
@@ -28,34 +29,24 @@ def create_volume_if_not_exists(workspace_client: WorkspaceClient, catalog: str,
         schema: Nom du schema
         volume: Nom du volume
     """
-    try:
-        # Créer le schema s'il n'existe pas
-        print(f"📂 Vérification du schema: {catalog}.{schema}")
-        workspace_client.schemas.create(catalog_name=catalog, name=schema, comment="Artifacts storage")
-        print("✅ Schema créé")
-    except Exception as e:
-        if "SCHEMA_ALREADY_EXISTS" in str(e) or "already exists" in str(e).lower():
-            print("⚠️  Schema existe déjà")
-        else:
-            print(f"⚠️  {e}")
+    volume_path = f"/Volumes/{catalog}/{schema}/{volume}"
+    print(f"📦 Vérification du volume: {volume_path}")
     
     try:
-        # Créer le volume s'il n'existe pas
-        print(f"📦 Vérification du volume: {catalog}.{schema}.{volume}")
-        workspace_client.volumes.create(
-            catalog_name=catalog,
-            schema_name=schema,
-            name=volume,
-            volume_type="MANAGED",
-            comment="Artifacts storage volume"
-        )
-        print("✅ Volume créé")
+        # Tenter de lister le contenu pour vérifier l'existence
+        list(workspace_client.files.list_directory_contents(volume_path))
+        print("✅ Volume existe\n")
     except Exception as e:
-        if "RESOURCE_ALREADY_EXISTS" in str(e) or "already exists" in str(e).lower():
-            print("⚠️  Volume existe déjà")
+        if "does not exist" in str(e).lower():
+            print(f"❌ Volume n'existe pas!")
+            print(f"   Créez-le dans Databricks avec:")
+            print(f"   CREATE SCHEMA IF NOT EXISTS {catalog}.{schema};")
+            print(f"   CREATE VOLUME IF NOT EXISTS {catalog}.{schema}.{volume};")
+            print()
+            raise FileNotFoundError(f"Le volume {catalog}.{schema}.{volume} doit être créé d'abord")
         else:
-            print(f"⚠️  {e}")
-    print()
+            # Autre erreur, peut-être que le volume est vide
+            print(f"✅ Volume existe (vide)\n")
 
 
 def upload_directory_to_volume(workspace_client: WorkspaceClient, local_dir: str, volume_path: str) -> int:
@@ -76,16 +67,15 @@ def upload_directory_to_volume(workspace_client: WorkspaceClient, local_dir: str
         raise FileNotFoundError(f"Le répertoire source '{local_dir}' n'existe pas")
     
     # Créer le répertoire de destination
-    print(f"📁 Création du volume: {volume_path}")
+    print(f"📁 Création du dossier: {volume_path}")
     try:
         workspace_client.files.create_directory(volume_path)
-        print("✅ Créé")
+        print("✅ Créé\n")
     except DatabricksError as e:
         if "RESOURCE_ALREADY_EXISTS" in str(e) or "already exists" in str(e).lower():
-            print("⚠️  Existe déjà")
+            print("⚠️  Existe déjà\n")
         else:
             raise
-    print()
     
     files_uploaded = 0
     
@@ -185,7 +175,7 @@ def deploy_artifacts(artifact_type: str, env: str, developer_name: str = None) -
     user = w.current_user.me()
     print(f"✅ Connecté en tant que: {user.user_name}\n")
     
-    # Créer le volume s'il n'existe pas
+    # Vérifier que le volume existe
     create_volume_if_not_exists(w, catalog, "artifacts", artifact_type)
     
     # Upload des fichiers

@@ -203,6 +203,36 @@ resource "databricks_volume" "packages" {
 }
 
 # ==============================================================================
+# Volumes supplémentaires pour artifacts
+# ==============================================================================
+resource "databricks_volume" "metadata" {
+	provider     = databricks.workspace
+	name         = "metadata"
+	catalog_name = databricks_catalog.bronze.name
+	schema_name  = databricks_schema.artifacts.name
+	volume_type  = "MANAGED"
+	comment      = "Volume pour les métadonnées des sources"
+}
+
+resource "databricks_volume" "config" {
+	provider     = databricks.workspace
+	name         = "config"
+	catalog_name = databricks_catalog.bronze.name
+	schema_name  = databricks_schema.artifacts.name
+	volume_type  = "MANAGED"
+	comment      = "Volume pour les fichiers de configuration"
+}
+
+resource "databricks_volume" "schema" {
+	provider     = databricks.workspace
+	name         = "schema"
+	catalog_name = databricks_catalog.bronze.name
+	schema_name  = databricks_schema.artifacts.name
+	volume_type  = "MANAGED"
+	comment      = "Volume pour les schémas de données"
+}
+
+# ==============================================================================
 # Unity Catalog Configuration avec Grants automatisés
 # ==============================================================================
 
@@ -298,6 +328,52 @@ resource "databricks_grants" "volume_packages" {
   depends_on = [
     databricks_service_principal.github_actions,
     databricks_volume.packages
+  ]
+}
+
+# Grants sur les volumes metadata, config, schema
+resource "databricks_grants" "volume_metadata" {
+  provider = databricks.workspace
+  volume   = "${databricks_catalog.bronze.name}.${databricks_schema.artifacts.name}.${databricks_volume.metadata.name}"
+  
+  grant {
+    principal  = databricks_service_principal.github_actions.application_id
+    privileges = ["READ_VOLUME", "WRITE_VOLUME"]
+  }
+  
+  depends_on = [
+    databricks_service_principal.github_actions,
+    databricks_volume.metadata
+  ]
+}
+
+resource "databricks_grants" "volume_config" {
+  provider = databricks.workspace
+  volume   = "${databricks_catalog.bronze.name}.${databricks_schema.artifacts.name}.${databricks_volume.config.name}"
+  
+  grant {
+    principal  = databricks_service_principal.github_actions.application_id
+    privileges = ["READ_VOLUME", "WRITE_VOLUME"]
+  }
+  
+  depends_on = [
+    databricks_service_principal.github_actions,
+    databricks_volume.config
+  ]
+}
+
+resource "databricks_grants" "volume_schema" {
+  provider = databricks.workspace
+  volume   = "${databricks_catalog.bronze.name}.${databricks_schema.artifacts.name}.${databricks_volume.schema.name}"
+  
+  grant {
+    principal  = databricks_service_principal.github_actions.application_id
+    privileges = ["READ_VOLUME", "WRITE_VOLUME"]
+  }
+  
+  depends_on = [
+    databricks_service_principal.github_actions,
+    databricks_volume.schema
   ]
 }
 
