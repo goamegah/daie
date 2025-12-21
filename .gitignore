@@ -227,3 +227,6 @@ deployment/docs/
 
 scripts/
 notebook/
+
+.vscode/
+.kiro/

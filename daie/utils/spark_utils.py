@@ -39,8 +39,7 @@ PROD = 'prod'
 
 SCOPE_NAME = "dataengineer"
 
-BASE_DIR = "abfss://daie-platform@{storage_account}.dfs.core.windows.net"
-NEW_BASE_DIR ="abfss://{container}@{storage_account}.dfs.core.windows.net"
+BASE_DIR ="abfss://{container}@{storage_account}.dfs.core.windows.net"
 
 spark = None
 dbutils = None
@@ -272,7 +271,7 @@ def schema_exists(full_schema_name: str) -> bool:
         return False
 
 
-def read_delta_table_if_exists(table_identifier)-> DataFrame:
+def read_delta_table_if_exists(table_identifier) -> DataFrame:
     return read_delta_table(table_identifier) if check_if_table_exists(table_identifier) else None
 
 def read_delta_table_with_condition(table_identifier, condition) -> DataFrame:
@@ -287,18 +286,18 @@ def write_delta_table(dataframe, table_identifier, mode="append", partitions=[],
         write_delta_table_by_name(dataframe, table_identifier,mode, partitions, options, path)
 
 
-def write_delta_stream(new_df,table_identifier:str,partitions):
+def write_delta_stream(new_df, table_identifier:str, partitions):
     if check_if_table_identifier_is_path(table_identifier):
         path=extract_storage_path(table_identifier)
         write_delta_stream_by_path(new_df, path, partitions)
     else:
-        checkpoint_path = get_volume_location(
+        checkpoint_path = get_or_create_volume_location(
             sub_folder=f"{KAFKA_FOLDER}/{CHECKPOINT_FOLDER}",
             table_identifier=table_identifier
         )
         write_delta_stream_by_name(new_df, table_identifier, checkpoint_path, partitions)
 
-def get_volume_location(sub_folder, table_identifier=None, catalog=None, schema=None, entity=None):
+def get_or_create_volume_location(sub_folder, table_identifier=None, catalog=None, schema=None, entity=None):
     if table_identifier:
         catalog, schema, entity = table_identifier.split(".")
     full_schema_name = f"{catalog}.{schema}"
@@ -382,11 +381,11 @@ def grant_manage_on_schema(full_schema_name:str, group_name:str):
         spark.sql(grant_select_schema)
 
 def resolve_group(group:str):                                                     #pylint: disable=invalid-name
-    main_env = get_main_env()
+    dbw_env = get_main_env()
     if group == "DE":
-        return f"G-DE-daie-chn-{main_env}"
+        return f"G-DE-daie-chn-{dbw_env}"
     elif group == "DS":
-        return f"G-DS-daie-chn-{main_env}"
+        return f"G-DS-daie-chn-{dbw_env}"
 
 def grant_manage_on_schema_to(full_schema_name:str, group:str="DS"):                     #pylint: disable=invalid-name
     group_name = resolve_group(group)

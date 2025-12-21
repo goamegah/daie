@@ -19,6 +19,11 @@ on:
         required: false
         default: false
         type: boolean
+      artifacts_to_deploy:
+        description: 'Artifacts à déployer (séparés par des virgules: metadata,config,schema)'
+        required: false
+        default: ''
+        type: string
 
 env:
   PYTHON_VERSION: '3.11'
@@ -190,4 +195,52 @@ jobs:
           echo "Developer: ${{ env.DEVELOPER_NAME }}"
           echo "Package: ${{ steps.vars.outputs.WHEEL_NAME }}"
           echo "Location: ${{ steps.vars.outputs.VOLUME_PATH }}"
+          echo ""
+
+  deploy-artifacts:
+    name: Deploy Artifacts
+    runs-on: ubuntu-latest
+    needs: build
+    if: ${{ github.event.inputs.artifacts_to_deploy != '' }}
+    environment: ${{ github.event.inputs.environment }}
+    env:
+      ENV_NAME: ${{ github.event.inputs.environment }}
+      DEVELOPER_NAME: ${{ github.event.inputs.developer_name }}
+      DATABRICKS_HOST: ${{ vars.DATABRICKS_HOST }}
+      AZURE_CLIENT_ID: ${{ secrets.ARM_CLIENT_ID }}
+      AZURE_CLIENT_SECRET: ${{ secrets.ARM_CLIENT_SECRET }}
+      AZURE_TENANT_ID: ${{ secrets.ARM_TENANT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      
+      - name: Install SDK
+        run: |
+          pip install -U pip databricks-sdk
+          python -c "import databricks.sdk; print('SDK OK')"
+      
+      - name: Deploy artifacts
+        run: |
+          IFS=',' read -ra ARTIFACTS <<< "${{ github.event.inputs.artifacts_to_deploy }}"
+          for artifact in "${ARTIFACTS[@]}"; do
+            artifact=$(echo "$artifact" | xargs)  # trim whitespace
+            if [ -n "$artifact" ]; then
+              echo "📦 Deploying $artifact..."
+              python deployment/devops/deploy_artifacts.py "$artifact" "${{ env.ENV_NAME }}" "${{ env.DEVELOPER_NAME }}"
+            fi
+          done
+      
+      - name: Summary
+        if: always()
+        run: |
+          echo ""
+          echo "╔═══════════════════════════════════════╗"
+          echo "║   📊 ARTIFACTS DEPLOYMENT SUMMARY     ║"
+          echo "╚═══════════════════════════════════════╝"
+          echo "Environment: ${{ env.ENV_NAME }}"
+          echo "Developer: ${{ env.DEVELOPER_NAME }}"
+          echo "Artifacts: ${{ github.event.inputs.artifacts_to_deploy }}"
           echo ""

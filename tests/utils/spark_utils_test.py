@@ -60,11 +60,11 @@ def test_write_delta_stream_with_unity_table_name():
     new_df_mock = MagicMock()
     table_identifier_unity = "daie_chn_dev_bronze.godwin_raw_opendata.accident_v1"
     partitions = ["partition_column"]
-    mock_checkpoint_path = "/Volumes/daie_chn_dev_bronze/godwin_raw_opendata/accident_v1"
+    mock_checkpoint_path = "/Volumes/daie_chn_dev_bronze/godwin_raw_opendata/accident_v1/kafka/checkpoint"
 
     # When: patching the dependencies and calling the function under test
     with patch('daie.utils.spark_utils.write_delta_stream_by_name') as mock_write_delta_stream_by_name, \
-         patch('daie.utils.spark_utils.get_volume_location', return_value=mock_checkpoint_path):
+         patch('daie.utils.spark_utils.get_or_create_volume_location', return_value=mock_checkpoint_path):
         spark_utils.write_delta_stream(new_df_mock, table_identifier_unity, partitions)
 
         # Then: the correct dependency should be called with expected arguments
