@@ -1,8 +1,13 @@
 # tests/devops/deploy_artifacts_test.py
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch, MagicMock, Mock
 import pytest
 from pathlib import Path
 import sys
+
+# Mock databricks.sdk avant d'importer deploy_artifacts
+sys.modules['databricks'] = Mock()
+sys.modules['databricks.sdk'] = Mock()
+sys.modules['databricks.sdk.core'] = Mock()
 
 # Add deployment module to path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "deployment" / "devops"))
