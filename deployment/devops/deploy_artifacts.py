@@ -18,6 +18,46 @@ project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
 
 
+def create_volume_if_not_exists(workspace_client: WorkspaceClient, catalog: str, schema: str, volume: str) -> None:
+    """
+    Crée un volume Unity Catalog s'il n'existe pas.
+    
+    Args:
+        workspace_client: Client Databricks SDK
+        catalog: Nom du catalog
+        schema: Nom du schema
+        volume: Nom du volume
+    """
+    try:
+        # Créer le schema s'il n'existe pas
+        print(f"📂 Vérification du schema: {catalog}.{schema}")
+        workspace_client.schemas.create(catalog_name=catalog, name=schema, comment="Artifacts storage")
+        print("✅ Schema créé")
+    except Exception as e:
+        if "SCHEMA_ALREADY_EXISTS" in str(e) or "already exists" in str(e).lower():
+            print("⚠️  Schema existe déjà")
+        else:
+            print(f"⚠️  {e}")
+    
+    try:
+        # Créer le volume s'il n'existe pas
+        print(f"📦 Vérification du volume: {catalog}.{schema}.{volume}")
+        workspace_client.volumes.create(
+            catalog_name=catalog,
+            schema_name=schema,
+            name=volume,
+            volume_type="MANAGED",
+            comment="Artifacts storage volume"
+        )
+        print("✅ Volume créé")
+    except Exception as e:
+        if "RESOURCE_ALREADY_EXISTS" in str(e) or "already exists" in str(e).lower():
+            print("⚠️  Volume existe déjà")
+        else:
+            print(f"⚠️  {e}")
+    print()
+
+
 def upload_directory_to_volume(workspace_client: WorkspaceClient, local_dir: str, volume_path: str) -> int:
     """
     Upload un répertoire local vers un volume Databricks (récursif).
@@ -144,6 +184,9 @@ def deploy_artifacts(artifact_type: str, env: str, developer_name: str = None) -
     )
     user = w.current_user.me()
     print(f"✅ Connecté en tant que: {user.user_name}\n")
+    
+    # Créer le volume s'il n'existe pas
+    create_volume_if_not_exists(w, catalog, "artifacts", artifact_type)
     
     # Upload des fichiers
     files_count = upload_directory_to_volume(w, source_dir, volume_path)

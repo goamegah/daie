@@ -79,6 +79,7 @@ def test_deploy_artifacts_metadata_to_dev():
     
     # When: deploying with mocked dependencies
     with patch('deploy_artifacts.WorkspaceClient') as mock_client_class, \
+         patch('deploy_artifacts.create_volume_if_not_exists') as mock_create_volume, \
          patch('deploy_artifacts.upload_directory_to_volume', return_value=5) as mock_upload, \
          patch.dict('os.environ', {
              'DATABRICKS_HOST': 'https://test.azuredatabricks.net',
@@ -93,7 +94,8 @@ def test_deploy_artifacts_metadata_to_dev():
         
         deploy_artifacts.deploy_artifacts(artifact_type, env)
     
-    # Then: upload should be called with correct parameters
+    # Then: volume should be created and upload called with correct parameters
+    mock_create_volume.assert_called_once_with(mock_client, 'daie_chn_dev_bronze', 'artifacts', 'metadata')
     mock_upload.assert_called_once()
     call_args = mock_upload.call_args[0]  # positional args
     assert call_args[1] == 'lakehouse/metadata'  # local_dir
@@ -108,6 +110,7 @@ def test_deploy_artifacts_to_custom_environment_with_developer_name():
     
     # When: deploying to custom environment
     with patch('deploy_artifacts.WorkspaceClient') as mock_client_class, \
+         patch('deploy_artifacts.create_volume_if_not_exists') as mock_create_volume, \
          patch('deploy_artifacts.upload_directory_to_volume', return_value=3) as mock_upload, \
          patch.dict('os.environ', {
              'DATABRICKS_HOST': 'https://test.azuredatabricks.net',
@@ -123,6 +126,7 @@ def test_deploy_artifacts_to_custom_environment_with_developer_name():
         deploy_artifacts.deploy_artifacts(artifact_type, env, developer_name)
     
     # Then: should deploy to developer-specific path
+    mock_create_volume.assert_called_once()
     call_args = mock_upload.call_args[0]
     assert f'/artifacts/metadata/{developer_name}' in call_args[2]  # volume_path
 
@@ -134,6 +138,7 @@ def test_deploy_artifacts_config_type():
     
     # When: deploying config without developer_name (defaults to 'dev' folder)
     with patch('deploy_artifacts.WorkspaceClient') as mock_client_class, \
+         patch('deploy_artifacts.create_volume_if_not_exists') as mock_create_volume, \
          patch('deploy_artifacts.upload_directory_to_volume', return_value=2) as mock_upload, \
          patch.dict('os.environ', {
              'DATABRICKS_HOST': 'https://test.azuredatabricks.net',
@@ -149,6 +154,7 @@ def test_deploy_artifacts_config_type():
         deploy_artifacts.deploy_artifacts(artifact_type, env)
     
     # Then: should use config source directory and default to 'dev' folder
+    mock_create_volume.assert_called_once_with(mock_client, 'daie_chn_prod_bronze', 'artifacts', 'config')
     call_args = mock_upload.call_args[0]
     assert call_args[1] == 'config'  # local_dir
     assert '/artifacts/config/dev' in call_args[2]  # volume_path (defaults to 'dev' folder)
