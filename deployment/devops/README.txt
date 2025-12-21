@@ -20,7 +20,10 @@ Via GitHub Actions:
   3. Remplir:
      - Environnement: dev/test/prod
      - Nom développeur: votre nom
-     - Artifacts à déployer: metadata,config,schema (séparés par virgules)
+     - Cocher les artifacts à déployer:
+       ☑ Déployer metadata
+       ☑ Déployer config
+       ☑ Déployer schema
 
 Variables d'environnement requises:
   DATABRICKS_HOST

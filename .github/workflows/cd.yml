@@ -19,11 +19,21 @@ on:
         required: false
         default: false
         type: boolean
-      artifacts_to_deploy:
-        description: 'Artifacts à déployer (séparés par des virgules: metadata,config,schema)'
+      deploy_metadata:
+        description: '📦 Déployer metadata'
         required: false
-        default: ''
-        type: string
+        default: false
+        type: boolean
+      deploy_config:
+        description: '⚙️ Déployer config'
+        required: false
+        default: false
+        type: boolean
+      deploy_schema:
+        description: '📋 Déployer schema'
+        required: false
+        default: false
+        type: boolean
 
 env:
   PYTHON_VERSION: '3.11'
@@ -201,7 +211,7 @@ jobs:
     name: Deploy Artifacts
     runs-on: ubuntu-latest
     needs: build
-    if: ${{ github.event.inputs.artifacts_to_deploy != '' }}
+    if: ${{ github.event.inputs.deploy_metadata == 'true' || github.event.inputs.deploy_config == 'true' || github.event.inputs.deploy_schema == 'true' }}
     environment: ${{ github.event.inputs.environment }}
     env:
       ENV_NAME: ${{ github.event.inputs.environment }}
@@ -222,16 +232,17 @@ jobs:
           pip install -U pip databricks-sdk
           python -c "import databricks.sdk; print('SDK OK')"
       
-      - name: Deploy artifacts
-        run: |
-          IFS=',' read -ra ARTIFACTS <<< "${{ github.event.inputs.artifacts_to_deploy }}"
-          for artifact in "${ARTIFACTS[@]}"; do
-            artifact=$(echo "$artifact" | xargs)  # trim whitespace
-            if [ -n "$artifact" ]; then
-              echo "📦 Deploying $artifact..."
-              python deployment/devops/deploy_artifacts.py "$artifact" "${{ env.ENV_NAME }}" "${{ env.DEVELOPER_NAME }}"
-            fi
-          done
+      - name: Deploy metadata
+        if: ${{ github.event.inputs.deploy_metadata == 'true' }}
+        run: python deployment/devops/deploy_artifacts.py metadata ${{ env.ENV_NAME }} ${{ env.DEVELOPER_NAME }}
+      
+      - name: Deploy config
+        if: ${{ github.event.inputs.deploy_config == 'true' }}
+        run: python deployment/devops/deploy_artifacts.py config ${{ env.ENV_NAME }} ${{ env.DEVELOPER_NAME }}
+      
+      - name: Deploy schema
+        if: ${{ github.event.inputs.deploy_schema == 'true' }}
+        run: python deployment/devops/deploy_artifacts.py schema ${{ env.ENV_NAME }} ${{ env.DEVELOPER_NAME }}
       
       - name: Summary
         if: always()
@@ -242,5 +253,8 @@ jobs:
           echo "╚═══════════════════════════════════════╝"
           echo "Environment: ${{ env.ENV_NAME }}"
           echo "Developer: ${{ env.DEVELOPER_NAME }}"
-          echo "Artifacts: ${{ github.event.inputs.artifacts_to_deploy }}"
+          echo "Deployed artifacts:"
+          ${{ github.event.inputs.deploy_metadata == 'true' }} && echo "  ✅ metadata" || echo "  ⏭️  metadata"
+          ${{ github.event.inputs.deploy_config == 'true' }} && echo "  ✅ config" || echo "  ⏭️  config"
+          ${{ github.event.inputs.deploy_schema == 'true' }} && echo "  ✅ schema" || echo "  ⏭️  schema"
           echo ""
