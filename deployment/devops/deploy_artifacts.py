@@ -113,15 +113,23 @@ def deploy_artifacts(artifact_type: str, env: str, developer_name: str = None) -
     artifact_config = {
         "metadata": {
             "source_dir": "lakehouse/metadata",
-            "description": "Métadonnées des sources"
+            "description": "Métadonnées des sources",
+            "use_developer_folder": True  # Déployer dans un dossier par développeur
         },
         "config": {
             "source_dir": "config",
-            "description": "Fichiers de configuration"
+            "description": "Fichiers de configuration",
+            "use_developer_folder": True
         },
         "schema": {
             "source_dir": "lakehouse/schema",
-            "description": "Schémas de données"
+            "description": "Schémas de données",
+            "use_developer_folder": True
+        },
+        "init_scripts": {
+            "source_dir": "deployment/databricks/init_scripts",
+            "description": "Scripts d'initialisation des clusters",
+            "use_developer_folder": True  # Init scripts par développeur
         }
     }
     
@@ -130,6 +138,7 @@ def deploy_artifacts(artifact_type: str, env: str, developer_name: str = None) -
     
     config = artifact_config[artifact_type]
     source_dir = config["source_dir"]
+    use_developer_folder = config["use_developer_folder"]
     
     # Nettoyer les variables conflictuelles
     for key in ['DATABRICKS_CLIENT_ID', 'DATABRICKS_CLIENT_SECRET']:
@@ -148,17 +157,20 @@ def deploy_artifacts(artifact_type: str, env: str, developer_name: str = None) -
     # Construire le chemin du volume
     catalog = f"daie_chn_{env}_bronze"
     
-    # Utiliser developer_name comme dossier (comme pour les packages)
-    # Si pas fourni, utiliser 'dev' par défaut
-    folder_name = developer_name if developer_name else 'dev'
-    volume_path = f"/Volumes/{catalog}/artifacts/{artifact_type}/{folder_name}"
+    # Utiliser developer_name comme dossier uniquement si configuré
+    if use_developer_folder:
+        folder_name = developer_name if developer_name else 'dev'
+        volume_path = f"/Volumes/{catalog}/artifacts/{artifact_type}/{folder_name}"
+    else:
+        # Init scripts partagés - pas de dossier développeur
+        volume_path = f"/Volumes/{catalog}/artifacts/{artifact_type}"
     
     print(f"\n╔═══════════════════════════════════════╗")
     print(f"║   📦 DÉPLOIEMENT D'ARTIFACTS          ║")
     print(f"╚═══════════════════════════════════════╝")
     print(f"Type: {artifact_type} ({config['description']})")
     print(f"Environnement: {env}")
-    if developer_name:
+    if use_developer_folder and developer_name:
         print(f"Développeur: {developer_name}")
     print(f"Source: {source_dir}")
     print(f"Destination: {volume_path}")

@@ -34,6 +34,17 @@ on:
         required: false
         default: false
         type: boolean
+      deploy_init_scripts:
+        description: '🚀 Déployer init scripts'
+        required: false
+        default: true
+        type: boolean
+      manage_cluster:
+        description: '🖥️ Gérer le cluster'
+        required: false
+        default: 'none'
+        type: choice
+        options: [none, create, delete]
 
 env:
   PYTHON_VERSION: '3.11'
@@ -191,8 +202,20 @@ jobs:
           
           echo "📦 Vars: Catalog=${BRONZE_CATALOG}, Volume=${VOLUME_PATH}, Package=${WHEEL_NAME}"
       
-      - name: Deploy
+      - name: Deploy wheel
         run: python deploy.py
+      
+      - name: Deploy init scripts
+        if: ${{ github.event.inputs.deploy_init_scripts == 'true' }}
+        run: python deployment/devops/deploy_artifacts.py init_scripts ${{ env.ENV_NAME }} ${{ env.DEVELOPER_NAME }}
+      
+      - name: Install on clusters
+        run: python deployment/devops/install_package_on_clusters.py ${{ env.ENV_NAME }} ${{ env.DEVELOPER_NAME }}
+        continue-on-error: true
+      
+      - name: Manage cluster
+        if: ${{ github.event.inputs.manage_cluster != 'none' }}
+        run: python deployment/devops/manage_cluster.py ${{ github.event.inputs.manage_cluster }} ${{ env.ENV_NAME }} ${{ env.DEVELOPER_NAME }}
       
       - name: Summary
         if: always()
@@ -205,13 +228,14 @@ jobs:
           echo "Developer: ${{ env.DEVELOPER_NAME }}"
           echo "Package: ${{ steps.vars.outputs.WHEEL_NAME }}"
           echo "Location: ${{ steps.vars.outputs.VOLUME_PATH }}"
+          echo "Cluster action: ${{ github.event.inputs.manage_cluster }}"
           echo ""
 
   deploy-artifacts:
     name: Deploy Artifacts
     runs-on: ubuntu-latest
     needs: build
-    if: ${{ github.event.inputs.deploy_metadata == 'true' || github.event.inputs.deploy_config == 'true' || github.event.inputs.deploy_schema == 'true' }}
+    if: ${{ github.event.inputs.deploy_metadata == 'true' || github.event.inputs.deploy_config == 'true' || github.event.inputs.deploy_schema == 'true' || github.event.inputs.deploy_init_scripts == 'true' }}
     environment: ${{ github.event.inputs.environment }}
     env:
       ENV_NAME: ${{ github.event.inputs.environment }}
@@ -244,6 +268,10 @@ jobs:
         if: ${{ github.event.inputs.deploy_schema == 'true' }}
         run: python deployment/devops/deploy_artifacts.py schema ${{ env.ENV_NAME }} ${{ env.DEVELOPER_NAME }}
       
+      - name: Deploy init scripts (artifacts job)
+        if: ${{ github.event.inputs.deploy_init_scripts == 'true' }}
+        run: python deployment/devops/deploy_artifacts.py init_scripts ${{ env.ENV_NAME }} ${{ env.DEVELOPER_NAME }}
+      
       - name: Summary
         if: always()
         run: |
@@ -257,4 +285,5 @@ jobs:
           ${{ github.event.inputs.deploy_metadata == 'true' }} && echo "  ✅ metadata" || echo "  ⏭️  metadata"
           ${{ github.event.inputs.deploy_config == 'true' }} && echo "  ✅ config" || echo "  ⏭️  config"
           ${{ github.event.inputs.deploy_schema == 'true' }} && echo "  ✅ schema" || echo "  ⏭️  schema"
+          ${{ github.event.inputs.deploy_init_scripts == 'true' }} && echo "  ✅ init_scripts" || echo "  ⏭️  init_scripts"
           echo ""

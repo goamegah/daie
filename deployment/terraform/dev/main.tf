@@ -74,6 +74,13 @@ resource "azurerm_storage_container" "gold" {
   container_access_type = "private"
 }
 
+# Container transient pour les fichiers temporaires (staging)
+resource "azurerm_storage_container" "transient" {
+  name                  = "transient"
+  storage_account_name  = azurerm_storage_account.this.name
+  container_access_type = "private"
+}
+
 # ==============================================================================
 # Databricks Access Connector
 # ==============================================================================

@@ -93,3 +93,36 @@ variable "storage_replication_type" {
     error_message = "Le type de réplication doit être : LRS, GRS, RAGRS ou ZRS"
   }
 }
+
+# ==============================================================================
+# Variables Clusters
+# ==============================================================================
+variable "databricks_runtime_version" {
+  description = "Version du runtime Databricks"
+  type        = string
+  default     = "15.4.x-scala2.12"
+}
+
+variable "node_type_id" {
+  description = "Type de nœud pour les clusters"
+  type        = string
+  default     = "Standard_D4ds_v5"
+}
+
+variable "auto_install_daie_package" {
+  description = "Installer automatiquement le package daie sur les clusters"
+  type        = bool
+  default     = true
+}
+
+variable "daie_package_version" {
+  description = "Version du package daie à installer"
+  type        = string
+  default     = "0.0.1"
+}
+
+variable "developer_name" {
+  description = "Nom du développeur pour le tag et le chemin du package"
+  type        = string
+  default     = "dev"
+}

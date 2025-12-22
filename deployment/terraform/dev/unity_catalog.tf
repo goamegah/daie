@@ -233,6 +233,18 @@ resource "databricks_volume" "schema" {
 }
 
 # ==============================================================================
+# Volume init_scripts
+# ==============================================================================
+resource "databricks_volume" "init_scripts" {
+	provider     = databricks.workspace
+	name         = "init_scripts"
+	catalog_name = databricks_catalog.bronze.name
+	schema_name  = databricks_schema.artifacts.name
+	volume_type  = "MANAGED"
+	comment      = "Volume pour les scripts d'initialisation des clusters"
+}
+
+# ==============================================================================
 # Unity Catalog Configuration avec Grants automatisés
 # ==============================================================================
 
@@ -242,9 +254,12 @@ resource "databricks_volume" "schema" {
 # Service Principal dans Databricks
 # ==============================================================================
 resource "databricks_service_principal" "github_actions" {
-  provider       = databricks.workspace
-  application_id = var.sp_client_id
-  display_name   = "SP GitHub Actions - ${var.environment}"
+  provider                   = databricks.workspace
+  application_id             = var.sp_client_id
+  display_name               = "SP GitHub Actions - ${var.environment}"
+  active                     = true
+  allow_cluster_create       = true
+  allow_instance_pool_create = false
 }
 
 # ==============================================================================
@@ -374,6 +389,22 @@ resource "databricks_grants" "volume_schema" {
   depends_on = [
     databricks_service_principal.github_actions,
     databricks_volume.schema
+  ]
+}
+
+# Grant sur le volume init_scripts
+resource "databricks_grants" "volume_init_scripts" {
+  provider = databricks.workspace
+  volume   = "${databricks_catalog.bronze.name}.${databricks_schema.artifacts.name}.${databricks_volume.init_scripts.name}"
+  
+  grant {
+    principal  = databricks_service_principal.github_actions.application_id
+    privileges = ["READ_VOLUME", "WRITE_VOLUME"]
+  }
+  
+  depends_on = [
+    databricks_service_principal.github_actions,
+    databricks_volume.init_scripts
   ]
 }
 
