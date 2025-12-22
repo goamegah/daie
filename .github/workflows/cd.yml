@@ -209,11 +209,6 @@ jobs:
         if: ${{ github.event.inputs.deploy_init_scripts == 'true' }}
         run: python deployment/devops/deploy_artifacts.py init_scripts ${{ env.ENV_NAME }} ${{ env.DEVELOPER_NAME }}
       
-      - name: Configure init script allowlist
-        if: ${{ github.event.inputs.manage_cluster == 'create' }}
-        run: python deployment/devops/configure_init_script_allowlist.py ${{ env.ENV_NAME }}
-        continue-on-error: true
-      
       - name: Manage cluster (create)
         if: ${{ github.event.inputs.manage_cluster == 'create' }}
         run: python deployment/devops/manage_cluster.py create ${{ env.ENV_NAME }} ${{ env.DEVELOPER_NAME }}
