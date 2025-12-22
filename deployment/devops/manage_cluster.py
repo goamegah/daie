@@ -7,7 +7,7 @@ Usage: python manage_cluster.py <action> <environment> <developer_name>
 import sys
 import os
 from databricks.sdk import WorkspaceClient
-from databricks.sdk.service.compute import ClusterSpec, DataSecurityMode, Library
+from databricks.sdk.service.compute import ClusterSpec, DataSecurityMode, Library, InitScriptInfo, VolumesStorageInfo
 
 def create_cluster(w: WorkspaceClient, env: str, developer: str, catalog: str) -> tuple[str, bool]:
     """
@@ -18,6 +18,7 @@ def create_cluster(w: WorkspaceClient, env: str, developer: str, catalog: str) -
     """
     
     cluster_name = f"daie-{env}-{developer}"
+    init_script_path = f"/Volumes/{catalog}/artifacts/init_scripts/{developer}/install_daie_package.sh"
     
     # Vérifier si le cluster existe déjà
     existing = list(w.clusters.list())
@@ -25,11 +26,28 @@ def create_cluster(w: WorkspaceClient, env: str, developer: str, catalog: str) -
         if c.cluster_name == cluster_name:
             print(f"⚠️  Cluster already exists: {cluster_name} ({c.cluster_id})")
             print(f"   State: {c.state.value if c.state else 'UNKNOWN'}")
+            
+            # Vérifier si l'init script est configuré
+            has_init_script = False
+            if c.init_scripts:
+                for script in c.init_scripts:
+                    if script.volumes and script.volumes.destination == init_script_path:
+                        has_init_script = True
+                        break
+            
+            if not has_init_script:
+                print(f"⚠️  Init script not configured on existing cluster")
+                print(f"   To add it, you need to edit the cluster configuration manually or delete and recreate")
+                print(f"   Init script path: {init_script_path}")
+            else:
+                print(f"✅ Init script already configured")
+            
             print(f"   → Will install package on existing cluster")
             return c.cluster_id, False
     
     print(f"🚀 Creating cluster: {cluster_name}")
     
+    # Préparer l'init script
     cluster = w.clusters.create(
         cluster_name=cluster_name,
         spark_version="15.4.x-scala2.12",
@@ -46,16 +64,17 @@ def create_cluster(w: WorkspaceClient, env: str, developer: str, catalog: str) -
             "Developer": developer,
             "Environment": env,
             "ManagedBy": "Pipeline"
-        }
+        },
+        init_scripts=[
+            InitScriptInfo(
+                volumes=VolumesStorageInfo(destination=init_script_path)
+            )
+        ]
     ).result()
     
     cluster_id = cluster.cluster_id
     print(f"✅ Cluster created: {cluster_id}")
-    
-    # Ajouter init script
-    init_script = f"/Volumes/{catalog}/artifacts/init_scripts/{developer}/install_daie_package.sh"
-    print(f"🔧 Init script configured: {init_script}")
-    print(f"   (Will be used on next cluster restart)")
+    print(f"🔧 Init script configured: {init_script_path}")
     
     print(f"\n✅ Cluster ready: {cluster_name} ({cluster_id})")
     print(f"\n💡 Access your cluster:")
