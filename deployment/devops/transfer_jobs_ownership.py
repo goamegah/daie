@@ -1,12 +1,14 @@
 #!/usr/bin/env python3
 """
 Script pour transférer l'ownership des jobs Databricks au Service Principal.
-Usage: python transfer_jobs_ownership.py <environment> [developer_name]
+Usage: python transfer_jobs_ownership.py <environment>
 """
 
 import sys
 import os
 from databricks.sdk import WorkspaceClient
+from databricks.sdk.service.iam import AccessControlRequest
+from databricks.sdk.service.jobs import JobPermissionLevel
 
 def transfer_jobs_ownership(w: WorkspaceClient, env: str, sp_application_id: str) -> None:
     """
@@ -46,14 +48,14 @@ def transfer_jobs_ownership(w: WorkspaceClient, env: str, sp_application_id: str
             w.jobs.set_permissions(
                 job_id=str(job_id),
                 access_control_list=[
-                    {
-                        "service_principal_name": sp_application_id,
-                        "permission_level": "IS_OWNER"
-                    },
-                    {
-                        "group_name": "admins",
-                        "permission_level": "CAN_MANAGE"
-                    }
+                    AccessControlRequest(
+                        service_principal_name=sp_application_id,
+                        permission_level=JobPermissionLevel.IS_OWNER
+                    ),
+                    AccessControlRequest(
+                        group_name="admins",
+                        permission_level=JobPermissionLevel.CAN_MANAGE
+                    )
                 ]
             )
             print(f"   ✅ Ownership transferred\n")
