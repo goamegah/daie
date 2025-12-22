@@ -13,7 +13,7 @@ from daie.utils.args_helper import parse_args
 
 JOB_PARAM = "job"
 LOG_PARAM = "log"
-IS_UNITY_PARAM = "is_unity"
+# IS_UNITY_PARAM = "is_unity"
 
 def main() -> None:
     """
@@ -23,7 +23,7 @@ def main() -> None:
     # Parse command line arguments
     args_dict = parse_args(sys.argv[1:])
     job = args_dict.pop(JOB_PARAM)
-    _ = args_dict.get(IS_UNITY_PARAM, False)
+    # _ = args_dict.get(IS_UNITY_PARAM, False)
     mod = import_module(job)
     fun = getattr(mod, "main")
     log = False if LOG_PARAM not in args_dict else literal_eval(args_dict.pop(LOG_PARAM))

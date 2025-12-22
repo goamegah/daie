@@ -53,22 +53,22 @@ env_config = {
         TENANT_ID: "tid-daie-chn-dev",
         RESOURCE_GROUP: "rg-daie-chn-dev"
     },
-    TEST: {
-        CLIENT_ID: "cid-daie-chn-test",
-        CLIENT_SECRET: "cst-daie-chn-test",
-        STORAGE_ACCOUNT: "sta-daie-chn-test",
-        SUBSCRIPTION_ID: "sid-daie-chn-test",
-        TENANT_ID: "tid-daie-chn-test",
-        RESOURCE_GROUP: "rg-daie-chn-test"
-    },
-    PROD: {
-        CLIENT_ID: "cid-daie-chn-prod",
-        CLIENT_SECRET: "cst-daie-chn-prod",
-        STORAGE_ACCOUNT: "sta-daie-chn-prod",
-        SUBSCRIPTION_ID: "sid-daie-chn-prod",
-        TENANT_ID: "tid-daie-chn-prod",
-        RESOURCE_GROUP: "rg-daie-chn-prod"
-    }
+    # TEST: {
+    #     CLIENT_ID: "cid-daie-chn-test",
+    #     CLIENT_SECRET: "cst-daie-chn-test",
+    #     STORAGE_ACCOUNT: "sta-daie-chn-test",
+    #     SUBSCRIPTION_ID: "sid-daie-chn-test",
+    #     TENANT_ID: "tid-daie-chn-test",
+    #     RESOURCE_GROUP: "rg-daie-chn-test"
+    # },
+    # PROD: {
+    #     CLIENT_ID: "cid-daie-chn-prod",
+    #     CLIENT_SECRET: "cst-daie-chn-prod",
+    #     STORAGE_ACCOUNT: "sta-daie-chn-prod",
+    #     SUBSCRIPTION_ID: "sid-daie-chn-prod",
+    #     TENANT_ID: "tid-daie-chn-prod",
+    #     RESOURCE_GROUP: "rg-daie-chn-prod"
+    # }
 }
 
 def read_json_file_as_dict(file_path: Path) -> Dict[str, Any]:
