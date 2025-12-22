@@ -50,11 +50,6 @@ on:
         required: false
         default: false
         type: boolean
-      grant_sp_permissions:
-        description: '🔑 S''accorder permission CAN_USE sur le SP'
-        required: false
-        default: false
-        type: boolean
 
 env:
   PYTHON_VERSION: '3.11'
@@ -232,10 +227,6 @@ jobs:
         if: ${{ github.event.inputs.manage_cluster == 'delete' }}
         run: python deployment/devops/manage_cluster.py delete ${{ env.ENV_NAME }} ${{ env.DEVELOPER_NAME }}
       
-      - name: Grant SP permissions (CAN_USE)
-        if: ${{ github.event.inputs.grant_sp_permissions == 'true' }}
-        run: python deployment/devops/grant_sp_permissions.py ${{ env.ENV_NAME }}
-      
       - name: Transfer jobs ownership to SP
         if: ${{ github.event.inputs.transfer_jobs_ownership == 'true' }}
         run: python deployment/devops/transfer_jobs_ownership.py ${{ env.ENV_NAME }}
@@ -252,7 +243,6 @@ jobs:
           echo "Package: ${{ steps.vars.outputs.WHEEL_NAME }}"
           echo "Location: ${{ steps.vars.outputs.VOLUME_PATH }}"
           echo "Cluster action: ${{ github.event.inputs.manage_cluster }}"
-          echo "SP permissions granted: ${{ github.event.inputs.grant_sp_permissions }}"
           echo "Jobs ownership transferred: ${{ github.event.inputs.transfer_jobs_ownership }}"
           echo ""
 
