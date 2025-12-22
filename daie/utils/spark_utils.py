@@ -16,12 +16,12 @@ def get_main_env() -> str:
     Returns:
     str: The environment name, 'dev', 'test' or 'prod'
     """
-    if check_if_scope_exists(SCOPE_NAME, get_client_secret_key(env=TEST)):
-        verified_env = TEST
-    elif check_if_scope_exists(SCOPE_NAME, get_client_secret_key(env=PROD)):
-        verified_env = PROD
-    else:
+    if check_if_scope_exists(SCOPE_NAME, get_client_secret_key(env=DEV)):
         verified_env = DEV
+    elif check_if_scope_exists(SCOPE_NAME, get_client_secret_key(env=TEST)):
+        verified_env = TEST
+    else:
+        verified_env = PROD
     return verified_env
 
 # Volume folders
