@@ -14,6 +14,14 @@ def create_cluster(w: WorkspaceClient, env: str, developer: str, catalog: str) -
     
     cluster_name = f"daie-{env}-{developer}"
     
+    # Vérifier si le cluster existe déjà
+    existing = list(w.clusters.list())
+    for c in existing:
+        if c.cluster_name == cluster_name:
+            print(f"⚠️  Cluster already exists: {cluster_name} ({c.cluster_id})")
+            print(f"   State: {c.state.value if c.state else 'UNKNOWN'}")
+            return c.cluster_id
+    
     print(f"🚀 Creating cluster: {cluster_name}")
     
     cluster = w.clusters.create(
@@ -42,16 +50,25 @@ def create_cluster(w: WorkspaceClient, env: str, developer: str, catalog: str) -
     wheel_path = f"/Volumes/{catalog}/artifacts/packages/{developer}/daie-0.0.1-py3-none-any.whl"
     print(f"📦 Installing package: {wheel_path}")
     
-    w.libraries.install(
-        cluster_id=cluster_id,
-        libraries=[Library(whl=wheel_path)]
-    )
+    try:
+        w.libraries.install(
+            cluster_id=cluster_id,
+            libraries=[Library(whl=wheel_path)]
+        )
+        print(f"✅ Package installed")
+    except Exception as e:
+        print(f"⚠️  Package installation failed: {e}")
+        print(f"   You can install it manually later")
     
     # Ajouter init script
     init_script = f"/Volumes/{catalog}/artifacts/init_scripts/{developer}/install_daie_package.sh"
-    print(f"🔧 Init script: {init_script}")
+    print(f"🔧 Init script configured: {init_script}")
+    print(f"   (Will be used on next cluster restart)")
     
     print(f"\n✅ Cluster ready: {cluster_name} ({cluster_id})")
+    print(f"\n💡 Access your cluster:")
+    print(f"   Databricks UI > Compute > {cluster_name}")
+    
     return cluster_id
 
 def delete_cluster(w: WorkspaceClient, env: str, developer: str) -> None:

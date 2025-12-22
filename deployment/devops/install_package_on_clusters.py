@@ -77,13 +77,18 @@ def main():
     print("\n📋 Listing clusters...")
     clusters = list(w.clusters.list())
     
-    # Filtrer par tag developer si spécifié
-    if developer_name and developer_name != "dev":
+    # Filtrer par tag developer
+    if developer_name:
         clusters = [c for c in clusters if c.custom_tags and c.custom_tags.get('Developer') == developer_name]
     
     if not clusters:
         print(f"⚠️  No clusters found for developer: {developer_name}")
-        return
+        print(f"\n💡 Tip: Create a cluster first:")
+        print(f"   python deployment/devops/manage_cluster.py create {environment} {developer_name}")
+        print(f"\n   Or via GitHub Actions:")
+        print(f"   Actions > CD - Déploiement Databricks")
+        print(f"   Gérer le cluster: create")
+        return 0  # Exit success - pas d'erreur, juste pas de clusters
     
     print(f"Found {len(clusters)} cluster(s) for {developer_name}:")
     for cluster in clusters:
@@ -91,9 +96,11 @@ def main():
         print(f"  - {cluster.cluster_name} ({cluster.cluster_id}) - {state}")
     
     print("\n" + "="*60)
+    installed_count = 0
     for cluster in clusters:
         try:
             install_library_on_cluster(w, cluster.cluster_id, cluster.cluster_name, wheel_path)
+            installed_count += 1
         except Exception as e:
             print(f"⚠️  Failed on {cluster.cluster_name}: {e}")
             continue
@@ -101,7 +108,9 @@ def main():
     print("\n" + "="*60)
     print("✅ INSTALLATION COMPLETE")
     print(f"📦 Package: {wheel_path}")
-    print(f"🎯 Installed on {len(clusters)} cluster(s)")
+    print(f"🎯 Installed on {installed_count}/{len(clusters)} cluster(s)")
+    
+    return 0 if installed_count > 0 else 1
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())
