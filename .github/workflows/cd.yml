@@ -229,7 +229,7 @@ jobs:
       
       - name: Transfer jobs ownership to SP
         if: ${{ github.event.inputs.transfer_jobs_ownership == 'true' }}
-        run: python deployment/devops/transfer_jobs_ownership.py ${{ env.ENV_NAME }} ${{ env.DEVELOPER_NAME }}
+        run: python deployment/devops/transfer_jobs_ownership.py ${{ env.ENV_NAME }}
       
       - name: Summary
         if: always()

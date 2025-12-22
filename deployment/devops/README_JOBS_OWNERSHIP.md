@@ -6,7 +6,9 @@
 - ✅ **Automatisation**: Pas de dépendance aux comptes utilisateurs
 - ✅ **Sécurité**: Permissions contrôlées et auditables
 - ✅ **Stabilité**: Les jobs continuent de fonctionner même si l'utilisateur quitte l'équipe
-- ✅ **Cohérence**: Tous les jobs utilisent la même identité
+- ✅ **Cohérence**: Tous les jobs utilisent la même identité (SP partagé)
+
+**Architecture**: Le Service Principal est **partagé par tous les développeurs** de l'environnement. Tous les jobs doivent lui appartenir.
 
 ## Utilisation
 
@@ -17,16 +19,14 @@
 3. Cocher **🔐 Transférer ownership des jobs au SP**
 4. Lancer le workflow
 
-Le script transfère automatiquement l'ownership de tous les jobs du développeur au Service Principal.
+Le script transfère automatiquement l'ownership de **TOUS les jobs** de l'environnement au Service Principal.
 
 ### Via Script Local
 
 ```bash
-# Transférer tous les jobs de l'environnement
+# Transférer TOUS les jobs de l'environnement
 python deployment/devops/transfer_jobs_ownership.py dev
-
-# Transférer uniquement les jobs d'un développeur spécifique
-python deployment/devops/transfer_jobs_ownership.py dev john
+python deployment/devops/transfer_jobs_ownership.py prod
 ```
 
 **Variables d'environnement requises:**
@@ -37,9 +37,11 @@ python deployment/devops/transfer_jobs_ownership.py dev john
 
 ## Que fait le script?
 
-1. **Liste les jobs** (filtrés par tag Developer si spécifié)
+1. **Liste TOUS les jobs** de l'environnement (pas de filtrage)
 2. **Transfère l'ownership** au Service Principal
 3. **Donne CAN_MANAGE** au groupe admins (backup)
+
+**Note**: Le script transfère tous les jobs, peu importe qui les a créés ou s'ils ont des tags.
 
 ## Après le transfert
 
@@ -56,18 +58,19 @@ Le job s'exécutera maintenant avec l'identité du Service Principal qui a:
 - ✅ Permissions Storage (Storage Blob Data Contributor)
 - ✅ Permissions cluster (create, manage)
 
-## Filtrage par Developer
+## Architecture
 
-Le script filtre automatiquement les jobs par le tag `Developer` si spécifié.
+**Service Principal partagé**: Un seul SP par environnement, utilisé par tous les développeurs.
 
-**Pour que ça fonctionne**, vos jobs doivent avoir le tag:
-```python
-# Lors de la création du job
-tags = {
-    "Developer": "john",
-    "Environment": "dev"
-}
-```
+**Séparation des responsabilités**:
+- **Packages/Artifacts**: Isolés par développeur (`/Volumes/.../packages/{developer}/`)
+- **Clusters**: Isolés par développeur (tag `Developer`)
+- **Jobs/Workflows**: Partagés, tous owned par le SP
+
+Cette architecture permet:
+- ✅ Chaque dev a son espace de travail (packages, clusters)
+- ✅ Tous les jobs utilisent la même identité sécurisée (SP)
+- ✅ Pas de dépendance aux comptes utilisateurs individuels
 
 ## Permissions requises
 

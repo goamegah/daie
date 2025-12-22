@@ -8,7 +8,7 @@ import sys
 import os
 from databricks.sdk import WorkspaceClient
 
-def transfer_jobs_ownership(w: WorkspaceClient, env: str, sp_application_id: str, developer: str = None) -> None:
+def transfer_jobs_ownership(w: WorkspaceClient, env: str, sp_application_id: str) -> None:
     """
     Transfère l'ownership de tous les jobs au Service Principal.
     
@@ -16,21 +16,14 @@ def transfer_jobs_ownership(w: WorkspaceClient, env: str, sp_application_id: str
         w: WorkspaceClient
         env: Environnement (dev, test, prod)
         sp_application_id: Application ID du Service Principal
-        developer: Nom du développeur (optionnel, pour filtrer les jobs)
     """
     
-    print(f"🔍 Listing jobs...")
+    print(f"🔍 Listing all jobs...")
     jobs = list(w.jobs.list())
     
-    # Filtrer par tag Developer si spécifié
-    if developer:
-        jobs = [j for j in jobs if j.settings and j.settings.tags and j.settings.tags.get('Developer') == developer]
-        print(f"   Filtered by Developer tag: {developer}")
-    
     if not jobs:
-        print(f"⚠️  No jobs found")
-        if developer:
-            print(f"\n💡 Tip: Create jobs with Developer tag: {developer}")
+        print(f"⚠️  No jobs found in environment: {env}")
+        print(f"\n💡 Tip: Create workflows in Databricks UI (Workflows menu)")
         return
     
     print(f"   Found {len(jobs)} job(s)\n")
@@ -83,17 +76,16 @@ def transfer_jobs_ownership(w: WorkspaceClient, env: str, sp_application_id: str
 
 def main():
     if len(sys.argv) < 2:
-        print("Usage: python transfer_jobs_ownership.py <environment> [developer_name]")
+        print("Usage: python transfer_jobs_ownership.py <environment>")
         print("\nExamples:")
         print("  python transfer_jobs_ownership.py dev")
-        print("  python transfer_jobs_ownership.py dev john")
+        print("  python transfer_jobs_ownership.py prod")
         print("\nDescription:")
-        print("  Transfers ownership of all jobs (or filtered by developer) to the Service Principal.")
-        print("  This allows jobs to run with SP identity instead of user identity.")
+        print("  Transfers ownership of ALL jobs/workflows to the Service Principal.")
+        print("  The SP is shared across all developers in the environment.")
         sys.exit(1)
     
     environment = sys.argv[1]
-    developer_name = sys.argv[2] if len(sys.argv) > 2 else None
     
     # Credentials
     host = os.getenv('DATABRICKS_HOST')
@@ -109,8 +101,6 @@ def main():
     print(f"\n{'='*60}")
     print(f"Transfer Jobs Ownership")
     print(f"Environment: {environment}")
-    if developer_name:
-        print(f"Developer: {developer_name}")
     print(f"{'='*60}\n")
     
     # Connexion
@@ -133,7 +123,7 @@ def main():
     sp_application_id = client_id
     
     try:
-        transfer_jobs_ownership(w, environment, sp_application_id, developer_name)
+        transfer_jobs_ownership(w, environment, sp_application_id)
     except Exception as e:
         print(f"\n❌ Error: {e}")
         sys.exit(1)
