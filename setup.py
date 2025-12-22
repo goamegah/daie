@@ -10,12 +10,13 @@ AUTHOR = 'Godwin AMEGAH'
 EMAIL = 'komlan.godwin.amegah@gmail.com'
 REQUIRES_PYTHON = '>=3.11'
 
-for line in open('daie/__init__.py'):
-    line = line.strip()
-    if '__version__' in line:
-        context = {}
-        exec(line, context)
-        VERSION = context['__version__']
+import re
+version_file = open('daie/__init__.py').read()
+version_match = re.search(r"^__version__ = ['\"]([^'\"]*)['\"]", version_file, re.M)
+if version_match:
+    VERSION = version_match.group(1)
+else:
+    raise RuntimeError("Unable to find version string.")
 
 HERE = Path(__file__).parent
 
