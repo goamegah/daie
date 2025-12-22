@@ -45,6 +45,11 @@ on:
         default: 'none'
         type: choice
         options: [none, create, delete]
+      transfer_jobs_ownership:
+        description: '🔐 Transférer ownership des jobs au SP'
+        required: false
+        default: false
+        type: boolean
 
 env:
   PYTHON_VERSION: '3.11'
@@ -222,6 +227,10 @@ jobs:
         if: ${{ github.event.inputs.manage_cluster == 'delete' }}
         run: python deployment/devops/manage_cluster.py delete ${{ env.ENV_NAME }} ${{ env.DEVELOPER_NAME }}
       
+      - name: Transfer jobs ownership to SP
+        if: ${{ github.event.inputs.transfer_jobs_ownership == 'true' }}
+        run: python deployment/devops/transfer_jobs_ownership.py ${{ env.ENV_NAME }} ${{ env.DEVELOPER_NAME }}
+      
       - name: Summary
         if: always()
         run: |
@@ -234,6 +243,7 @@ jobs:
           echo "Package: ${{ steps.vars.outputs.WHEEL_NAME }}"
           echo "Location: ${{ steps.vars.outputs.VOLUME_PATH }}"
           echo "Cluster action: ${{ github.event.inputs.manage_cluster }}"
+          echo "Jobs ownership transferred: ${{ github.event.inputs.transfer_jobs_ownership }}"
           echo ""
 
   deploy-artifacts:

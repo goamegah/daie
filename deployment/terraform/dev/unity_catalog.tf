@@ -245,12 +245,6 @@ resource "databricks_volume" "init_scripts" {
 }
 
 # ==============================================================================
-# Unity Catalog Configuration avec Grants automatisés
-# ==============================================================================
-
-# ... (gardez vos ressources existantes) ...
-
-# ==============================================================================
 # Service Principal dans Databricks
 # ==============================================================================
 resource "databricks_service_principal" "github_actions" {
@@ -261,6 +255,16 @@ resource "databricks_service_principal" "github_actions" {
   allow_cluster_create       = true
   allow_instance_pool_create = false
 }
+
+# ==============================================================================
+# NOTE: Service Principal Usage Permissions
+# ==============================================================================
+# Pour permettre aux utilisateurs d'utiliser le SP dans les jobs, exécutez:
+# python deployment/devops/grant_sp_usage.py dev
+#
+# Ou manuellement dans Databricks UI:
+# Settings > Identity and Access > Service Principals > SP GitHub Actions - dev
+# > Permissions > Add > Group: users > Permission: CAN_USE
 
 # ==============================================================================
 # Grants - Permissions automatisées

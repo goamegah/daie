@@ -97,22 +97,29 @@ resource "azurerm_databricks_access_connector" "this" {
 }
 
 # ==============================================================================
-# NOTE : Role Assignments pour Access Connector et SP
+# Role Assignments - Storage Access
 # ==============================================================================
-# Ces role assignments nÃ©cessitent le rÃ´le "User Access Administrator"
-# Ils seront crÃ©Ã©s MANUELLEMENT via Azure Portal ou CLI :
-#
-# 1. Storage Blob Data Contributor pour Access Connector :
-# az role assignment create \
-#   --assignee <ACCESS_CONNECTOR_PRINCIPAL_ID> \
-#   --role "Storage Blob Data Contributor" \
-#   --scope /subscriptions/455fde4d-a77d-4a42-bbff-d13341a34203/resourceGroups/rg-daie-chn-dev/providers/Microsoft.Storage/storageAccounts/stadaiechndev
-#
-# 2. Contributor sur Databricks pour le SP GitHub :
-# az role assignment create \
-#   --assignee 76be8de1-371e-4234-bc73-af19d46a0c44 \
-#   --role "Contributor" \
-#   --scope /subscriptions/455fde4d-a77d-4a42-bbff-d13341a34203/resourceGroups/rg-daie-chn-dev/providers/Microsoft.Databricks/workspaces/dbw-daie-chn-dev
+
+# Access Connector needs Storage Blob Data Contributor on storage account
+resource "azurerm_role_assignment" "access_connector_storage" {
+  scope                = azurerm_storage_account.this.id
+  role_definition_name = "Storage Blob Data Contributor"
+  principal_id         = azurerm_databricks_access_connector.this.identity[0].principal_id
+
+  depends_on = [
+    azurerm_databricks_access_connector.this,
+    azurerm_storage_account.this
+  ]
+}
+
+# Service Principal needs Storage Blob Data Contributor for job execution
+resource "azurerm_role_assignment" "sp_storage" {
+  scope                = azurerm_storage_account.this.id
+  role_definition_name = "Storage Blob Data Contributor"
+  principal_id         = var.sp_object_id
+
+  depends_on = [azurerm_storage_account.this]
+}
 
 # ==============================================================================
 # Databricks Workspace
