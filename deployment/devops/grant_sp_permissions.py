@@ -44,12 +44,9 @@ def grant_sp_permissions(w: WorkspaceClient, sp_application_id: str) -> None:
     print(f"{'='*60}\n")
     
     try:
-        # Utiliser l'API permissions avec object_type service-principals
-        object_id = f"/service-principals/{sp_id}"
-        
         # Récupérer les permissions actuelles
         try:
-            current_permissions = w.permissions.get(request_object_type="service-principals", request_object_id=sp_id)
+            current_permissions = w.service_principals.get_permissions(sp_id)
             access_control_list = list(current_permissions.access_control_list) if current_permissions.access_control_list else []
         except:
             # Si pas de permissions existantes, créer une liste vide
@@ -76,9 +73,8 @@ def grant_sp_permissions(w: WorkspaceClient, sp_application_id: str) -> None:
         )
         
         # Appliquer les permissions
-        w.permissions.set(
-            request_object_type="service-principals",
-            request_object_id=sp_id,
+        w.service_principals.set_permissions(
+            sp_id,
             access_control_list=access_control_list
         )
         
