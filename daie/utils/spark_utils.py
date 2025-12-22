@@ -52,6 +52,22 @@ env_config = {
         SUBSCRIPTION_ID: "sid-daie-chn-dev",
         TENANT_ID: "tid-daie-chn-dev",
         RESOURCE_GROUP: "rg-daie-chn-dev"
+    },
+    TEST: {
+        CLIENT_ID: "cid-daie-chn-test",
+        CLIENT_SECRET: "cst-daie-chn-test",
+        STORAGE_ACCOUNT: "sta-daie-chn-test",
+        SUBSCRIPTION_ID: "sid-daie-chn-test",
+        TENANT_ID: "tid-daie-chn-test",
+        RESOURCE_GROUP: "rg-daie-chn-test"
+    },
+    PROD: {
+        CLIENT_ID: "cid-daie-chn-prod",
+        CLIENT_SECRET: "cst-daie-chn-prod",
+        STORAGE_ACCOUNT: "sta-daie-chn-prod",
+        SUBSCRIPTION_ID: "sid-daie-chn-prod",
+        TENANT_ID: "tid-daie-chn-prod",
+        RESOURCE_GROUP: "rg-daie-chn-prod"
     }
 }
 
@@ -99,22 +115,40 @@ def get_storage_account(env):
     return dbutils.secrets.get(scope=SCOPE_NAME, key=get_storage_account_key(env))
 
 def get_storage_account_key(env):
-    return env_config.get(env).get(STORAGE_ACCOUNT)
+    config = env_config.get(env)
+    if config is None:
+        raise ValueError(f"Environment '{env}' not found in env_config. Available: {list(env_config.keys())}")
+    return config.get(STORAGE_ACCOUNT)
 
 def get_client_secret_key(env):
-    return env_config.get(env).get(CLIENT_SECRET)
+    config = env_config.get(env)
+    if config is None:
+        raise ValueError(f"Environment '{env}' not found in env_config. Available: {list(env_config.keys())}")
+    return config.get(CLIENT_SECRET)
 
 def get_client_id_key(env):
-    return env_config.get(env).get(CLIENT_ID)
+    config = env_config.get(env)
+    if config is None:
+        raise ValueError(f"Environment '{env}' not found in env_config. Available: {list(env_config.keys())}")
+    return config.get(CLIENT_ID)
 
 def get_tenant_id_key(env):
-    return env_config.get(env).get(TENANT_ID)
+    config = env_config.get(env)
+    if config is None:
+        raise ValueError(f"Environment '{env}' not found in env_config. Available: {list(env_config.keys())}")
+    return config.get(TENANT_ID)
 
 def get_resource_group_key(env):
-    return env_config.get(env).get(RESOURCE_GROUP)
+    config = env_config.get(env)
+    if config is None:
+        raise ValueError(f"Environment '{env}' not found in env_config. Available: {list(env_config.keys())}")
+    return config.get(RESOURCE_GROUP)
 
 def get_subscription_id_key(env):
-    return env_config.get(env).get(SUBSCRIPTION_ID)
+    config = env_config.get(env)
+    if config is None:
+        raise ValueError(f"Environment '{env}' not found in env_config. Available: {list(env_config.keys())}")
+    return config.get(SUBSCRIPTION_ID)
 
 
 def get_endpoint(env):
