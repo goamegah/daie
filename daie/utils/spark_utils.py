@@ -71,7 +71,7 @@ def get_main_env() -> str:
     else:
         verified_env = PROD
     return verified_env
-    
+
 def read_json_file_as_dict(file_path: Path) -> Dict[str, Any]:
     """Read a JSON file and return it as a dictionary."""
     with file_path.open('r') as file:
@@ -422,6 +422,6 @@ def resolve_group(group:str):                                                   
     elif group == "DS":
         return f"G-DS-daie-chn-{dbw_env}"
 
-def grant_manage_on_schema_to(full_schema_name:str, group:str="DS"):                     #pylint: disable=invalid-name
+def grant_manage_on_schema_to(full_schema_name:str, group:str="DE"):                     #pylint: disable=invalid-name
     group_name = resolve_group(group)
     grant_manage_on_schema(full_schema_name, group_name)
