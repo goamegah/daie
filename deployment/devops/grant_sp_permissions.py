@@ -44,18 +44,28 @@ def grant_sp_permissions(w: WorkspaceClient, sp_application_id: str) -> None:
     print(f"{'='*60}\n")
     
     try:
+        # Utiliser l'API permissions avec object_type service-principals
+        object_id = f"/service-principals/{sp_id}"
+        
         # Récupérer les permissions actuelles
-        current_permissions = w.service_principals.get_permissions(sp_id)
+        try:
+            current_permissions = w.permissions.get(request_object_type="service-principals", request_object_id=sp_id)
+            access_control_list = list(current_permissions.access_control_list) if current_permissions.access_control_list else []
+        except:
+            # Si pas de permissions existantes, créer une liste vide
+            access_control_list = []
         
-        # Créer la nouvelle liste de contrôle d'accès
-        access_control_list = []
+        # Vérifier si l'utilisateur a déjà la permission
+        user_already_has_permission = any(
+            acl.user_name == user_name for acl in access_control_list
+        )
         
-        # Garder les permissions existantes
-        if current_permissions.access_control_list:
-            for acl in current_permissions.access_control_list:
-                # Ne pas dupliquer si l'utilisateur existe déjà
-                if acl.user_name != user_name:
-                    access_control_list.append(acl)
+        if user_already_has_permission:
+            print(f"✅ User {user_name} already has CAN_USE permission")
+            print(f"\n{'='*60}")
+            print(f"✅ SUCCESS (already configured)")
+            print(f"{'='*60}\n")
+            return
         
         # Ajouter la permission CAN_USE pour l'utilisateur actuel
         access_control_list.append(
@@ -66,8 +76,9 @@ def grant_sp_permissions(w: WorkspaceClient, sp_application_id: str) -> None:
         )
         
         # Appliquer les permissions
-        w.service_principals.set_permissions(
-            sp_id,
+        w.permissions.set(
+            request_object_type="service-principals",
+            request_object_id=sp_id,
             access_control_list=access_control_list
         )
         
