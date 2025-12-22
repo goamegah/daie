@@ -9,20 +9,6 @@ from pyspark import errors as E
 from daie.utils.constants.metadata import RESOURCE_GROUP, TENANT_ID, STORAGE_ACCOUNT, CLIENT_ID, CLIENT_SECRET, SUBSCRIPTION_ID
 from daie.definitions import LOCAL_DATABRICKS_CONNECT_CONFIG_FILE
 
-def get_main_env() -> str:
-    """
-    This function verifies wich environment databricks is in
-
-    Returns:
-    str: The environment name, 'dev', 'test' or 'prod'
-    """
-    if check_if_scope_exists(SCOPE_NAME, get_client_secret_key(env=DEV)):
-        verified_env = DEV
-    elif check_if_scope_exists(SCOPE_NAME, get_client_secret_key(env=TEST)):
-        verified_env = TEST
-    else:
-        verified_env = PROD
-    return verified_env
 
 # Volume folders
 KAFKA_FOLDER = "kafka"
@@ -71,6 +57,21 @@ env_config = {
     # }
 }
 
+def get_main_env() -> str:
+    """
+    This function verifies wich environment databricks is in
+
+    Returns:
+    str: The environment name, 'dev', 'test' or 'prod'
+    """
+    if check_if_scope_exists(SCOPE_NAME, get_client_secret_key(env=DEV)):
+        verified_env = DEV
+    elif check_if_scope_exists(SCOPE_NAME, get_client_secret_key(env=TEST)):
+        verified_env = TEST
+    else:
+        verified_env = PROD
+    return verified_env
+    
 def read_json_file_as_dict(file_path: Path) -> Dict[str, Any]:
     """Read a JSON file and return it as a dictionary."""
     with file_path.open('r') as file:
