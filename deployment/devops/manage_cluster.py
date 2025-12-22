@@ -9,8 +9,13 @@ import os
 from databricks.sdk import WorkspaceClient
 from databricks.sdk.service.compute import ClusterSpec, DataSecurityMode, Library
 
-def create_cluster(w: WorkspaceClient, env: str, developer: str, catalog: str) -> str:
-    """Crée un cluster pour un développeur."""
+def create_cluster(w: WorkspaceClient, env: str, developer: str, catalog: str) -> tuple[str, bool]:
+    """
+    Crée un cluster pour un développeur ou retourne l'existant.
+    
+    Returns:
+        tuple[str, bool]: (cluster_id, was_created)
+    """
     
     cluster_name = f"daie-{env}-{developer}"
     
@@ -20,7 +25,8 @@ def create_cluster(w: WorkspaceClient, env: str, developer: str, catalog: str) -
         if c.cluster_name == cluster_name:
             print(f"⚠️  Cluster already exists: {cluster_name} ({c.cluster_id})")
             print(f"   State: {c.state.value if c.state else 'UNKNOWN'}")
-            return c.cluster_id
+            print(f"   → Will install package on existing cluster")
+            return c.cluster_id, False
     
     print(f"🚀 Creating cluster: {cluster_name}")
     
@@ -46,20 +52,6 @@ def create_cluster(w: WorkspaceClient, env: str, developer: str, catalog: str) -
     cluster_id = cluster.cluster_id
     print(f"✅ Cluster created: {cluster_id}")
     
-    # Installer le package
-    wheel_path = f"/Volumes/{catalog}/artifacts/packages/{developer}/daie-0.0.1-py3-none-any.whl"
-    print(f"📦 Installing package: {wheel_path}")
-    
-    try:
-        w.libraries.install(
-            cluster_id=cluster_id,
-            libraries=[Library(whl=wheel_path)]
-        )
-        print(f"✅ Package installed")
-    except Exception as e:
-        print(f"⚠️  Package installation failed: {e}")
-        print(f"   You can install it manually later")
-    
     # Ajouter init script
     init_script = f"/Volumes/{catalog}/artifacts/init_scripts/{developer}/install_daie_package.sh"
     print(f"🔧 Init script configured: {init_script}")
@@ -69,7 +61,7 @@ def create_cluster(w: WorkspaceClient, env: str, developer: str, catalog: str) -
     print(f"\n💡 Access your cluster:")
     print(f"   Databricks UI > Compute > {cluster_name}")
     
-    return cluster_id
+    return cluster_id, True
 
 def delete_cluster(w: WorkspaceClient, env: str, developer: str) -> None:
     """Supprime le cluster d'un développeur."""
@@ -141,7 +133,38 @@ def main():
     
     try:
         if action == "create":
-            create_cluster(w, env, developer, catalog)
+            cluster_id, was_created = create_cluster(w, env, developer, catalog)
+            
+            # Trouver le dernier wheel déployé
+            volume_path = f"/Volumes/{catalog}/artifacts/packages/{developer}"
+            print(f"\n� IFinding latest wheel in: {volume_path}")
+            
+            try:
+                files = list(w.files.list_directory_contents(volume_path))
+                wheels = [f for f in files if f.name.endswith('.whl') and f.name.startswith('daie-')]
+                
+                if not wheels:
+                    print(f"⚠️  No wheel found in {volume_path}")
+                    print(f"   The init script will install it when available")
+                else:
+                    # Trier par nom (version) et prendre le dernier
+                    latest = sorted(wheels, key=lambda x: x.name)[-1]
+                    wheel_path = f"{volume_path}/{latest.name}"
+                    
+                    print(f"📦 Installing package: {latest.name}")
+                    
+                    try:
+                        w.libraries.install(
+                            cluster_id=cluster_id,
+                            libraries=[Library(whl=wheel_path)]
+                        )
+                        print(f"✅ Package installed on cluster")
+                    except Exception as e:
+                        print(f"⚠️  Package installation failed: {e}")
+                        print(f"   The init script will install it on next cluster restart")
+            except Exception as e:
+                print(f"⚠️  Could not access volume: {e}")
+                print(f"   The init script will install the package on next cluster restart")
         else:
             delete_cluster(w, env, developer)
     except Exception as e:
