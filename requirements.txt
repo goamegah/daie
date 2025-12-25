@@ -1,1 +1,10 @@
+pandas
+numpy
+requests
+scikit-learn
+mlflow
+databricks-sdk
+databricks-feature-engineering
+azure-keyvault-secrets 
+azure-identity
 pyspark==3.5.0

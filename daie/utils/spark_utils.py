@@ -3,13 +3,26 @@ import os
 import json
 from typing import Dict, Any, Optional
 from pathlib import Path
-from pyspark.sql import SparkSession, DataFrame, Column
+from pyspark.sql import SparkSession, DataFrame
 from pyspark.sql import functions as F
 from pyspark import errors as E
-from daie.utils.constants.metadata import TENANT_ID, STORAGE_ACCOUNT_NAME, APPLICATION_ID, SECRET_KEY
-from daie.utils.config import get_env_config
+from daie.utils.constants.metadata import RESOURCE_GROUP, TENANT_ID, STORAGE_ACCOUNT, CLIENT_ID, CLIENT_SECRET, SUBSCRIPTION_ID
 from daie.definitions import LOCAL_DATABRICKS_CONNECT_CONFIG_FILE
 
+def get_main_env() -> str:
+    """
+    This function verifies wich environment databricks is in
+
+    Returns:
+    str: The environment name, 'dev', 'test' or 'prod'
+    """
+    if check_if_scope_exists(SCOPE_NAME, get_client_secret_key(env=TEST)):
+        verified_env = TEST
+    elif check_if_scope_exists(SCOPE_NAME, get_client_secret_key(env=PROD)):
+        verified_env = PROD
+    else:
+        verified_env = DEV
+    return verified_env
 
 # Volume folders
 KAFKA_FOLDER = "kafka"
@@ -29,19 +42,26 @@ SCOPE_NAME = "dataengineer"
 BASE_DIR = "abfss://daie-platform@{storage_account}.dfs.core.windows.net"
 NEW_BASE_DIR ="abfss://{container}@{storage_account}.dfs.core.windows.net"
 
+spark = None
+dbutils = None
+
+env_config = {
+    DEV: {
+        CLIENT_ID: "cid-daie-chn-dev",
+        CLIENT_SECRET: "cst-daie-chn-dev",
+        STORAGE_ACCOUNT: "sta-daie-chn-dev",
+        SUBSCRIPTION_ID: "sid-daie-chn-dev",
+        TENANT_ID: "tid-daie-chn-dev",
+        RESOURCE_GROUP: "rg-daie-chn-dev"
+    }
+}
+
 def read_json_file_as_dict(file_path: Path) -> Dict[str, Any]:
     """Read a JSON file and return it as a dictionary."""
     with file_path.open('r') as file:
         return json.load(file)
-
-# Load config from Python module
-env_config = get_env_config()
-ENDPOINT = f"https://login.microsoftonline.com/{env_config[DEV][TENANT_ID]}/oauth2/token"
-
-spark = None
-dbutils = None
-
-def check_if_scope_exists(scope,input_value):
+    
+def check_if_scope_exists(scope, input_value):
     try:
         dbutils = get_dbutils() #pylint: disable=redefined-outer-name
         dbutils.secrets.get(scope=scope, key=input_value)
@@ -57,33 +77,53 @@ def does_path_exist_in_databricks(path):
     except: #pylint: disable=bare-except
         return False
 
-def get_main_env() -> str:
-    """
-    This function verifies wich environment databricks is in
-
-    Returns:
-    str: The environment name, 'dev', 'test' or 'prod'
-    """
-    if check_if_scope_exists(SCOPE_NAME, get_secret_key(env=TEST)):
-        verified_env = TEST
-    elif check_if_scope_exists(SCOPE_NAME, get_secret_key(env=PROD)):
-        verified_env = PROD
-    else:
-        verified_env = DEV
-    return verified_env
-
-
 def get_base_dir():
-    storage_account = env_config[get_main_env()][STORAGE_ACCOUNT_NAME]
+    storage_account = get_storage_account(get_main_env())
     return BASE_DIR.format(storage_account=storage_account)
 
+# def get_client_secret(env):
+#     return dbutils.secrets.get(scope=SCOPE_NAME, key=get_client_secret_key(env))
 
-def get_application_id(env):
-    return env_config.get(env).get(APPLICATION_ID)
+def get_client_id(env):
+    return dbutils.secrets.get(scope=SCOPE_NAME, key=get_client_id_key(env))
+
+def get_tenant_id(env):
+    return dbutils.secrets.get(scope=SCOPE_NAME, key=get_tenant_id_key(env))
+
+def get_subscription_id(env):
+    return dbutils.secrets.get(scope=SCOPE_NAME, key=get_subscription_id_key(env))
+
+def get_resource_group(env):
+    return dbutils.secrets.get(scope=SCOPE_NAME, key=get_resource_group_key(env))
+
+def get_storage_account(env):
+    return dbutils.secrets.get(scope=SCOPE_NAME, key=get_storage_account_key(env))
+
+def get_storage_account_key(env):
+    return env_config.get(env).get(STORAGE_ACCOUNT)
+
+def get_client_secret_key(env):
+    return env_config.get(env).get(CLIENT_SECRET)
+
+def get_client_id_key(env):
+    return env_config.get(env).get(CLIENT_ID)
+
+def get_tenant_id_key(env):
+    return env_config.get(env).get(TENANT_ID)
+
+def get_resource_group_key(env):
+    return env_config.get(env).get(RESOURCE_GROUP)
+
+def get_subscription_id_key(env):
+    return env_config.get(env).get(SUBSCRIPTION_ID)
 
 
-def get_secret_key(env):
-    return env_config.get(env).get(SECRET_KEY)
+def get_endpoint(env):
+    return f"https://login.microsoftonline.com/{get_tenant_id(env)}/oauth2/token"
+
+
+# ENDPOINT = f"https://login.microsoftonline.com/{get_tenant_id(DEV)}/oauth2/token"
+
 
 def get_dbutils():
     global dbutils, spark #pylint: disable=global-statement
@@ -105,9 +145,9 @@ def get_spark_session() -> SparkSession:
         if os.path.exists(LOCAL_DATABRICKS_CONNECT_CONFIG_FILE):
             # Local spark session for Unity Catalog 'Databricks Connect
             print("\n Bulding Local spark for Unity \n")
-            from databricks.sdk.core import Config #pylint:disable=import-error,disable=import-outside-toplevel
-            from databricks.connect import DatabricksSession #pylint:disable=import-error,disable=import-outside-toplevel,disable=no-name-in-module
-            from databricks.sdk import WorkspaceClient #pylint:disable=import-error,disable=import-outside-toplevel,disable=no-name-in-module
+            from databricks.sdk.core import Config  #pylint:disable=import-error,disable=import-outside-toplevel
+            from databricks.connect import DatabricksSession    #pylint:disable=import-error,disable=import-outside-toplevel,disable=no-name-in-module
+            from databricks.sdk import WorkspaceClient  #pylint:disable=import-error,disable=import-outside-toplevel,disable=no-name-in-module
             config_file = read_json_file_as_dict(Path(LOCAL_DATABRICKS_CONNECT_CONFIG_FILE))
             config = Config(
                 host       = config_file["host"],
@@ -124,12 +164,12 @@ def get_spark_session() -> SparkSession:
 
         dbutils = get_dbutils() #pylint: disable=redefined-outer-name
         env = get_main_env()
-        storage_account = env_config[env][STORAGE_ACCOUNT_NAME]
+        storage_account = get_storage_account(env)
         spark.conf.set(f"fs.azure.account.auth.type.{storage_account}.dfs.core.windows.net", "OAuth")
         spark.conf.set(f"fs.azure.account.oauth.provider.type.{storage_account}.dfs.core.windows.net", "org.apache.hadoop.fs.azurebfs.oauth2.ClientCredsTokenProvider")
-        spark.conf.set(f"fs.azure.account.oauth2.client.id.{storage_account}.dfs.core.windows.net", get_application_id(env))
-        spark.conf.set(f"fs.azure.account.oauth2.client.secret.{storage_account}.dfs.core.windows.net", dbutils.secrets.get(scope=SCOPE_NAME, key=get_secret_key(env)))
-        spark.conf.set(f"fs.azure.account.oauth2.client.endpoint.{storage_account}.dfs.core.windows.net", ENDPOINT)
+        spark.conf.set(f"fs.azure.account.oauth2.client.id.{storage_account}.dfs.core.windows.net", get_client_id(env))
+        spark.conf.set(f"fs.azure.account.oauth2.client.secret.{storage_account}.dfs.core.windows.net", dbutils.secrets.get(scope=SCOPE_NAME, key=get_client_secret_key(env)))
+        spark.conf.set(f"fs.azure.account.oauth2.client.endpoint.{storage_account}.dfs.core.windows.net", get_endpoint(env))
     else:
         # Spark session for Unit Tests
         # specific configuration to optimise perfs for unit tests
