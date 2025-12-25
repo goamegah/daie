@@ -3,28 +3,9 @@ from pathlib import Path
 from pyspark.sql import SparkSession
 from delta import configure_spark_with_delta_pip
 from pyspark.sql import functions as F
+from constants import *
+from spark_session import get_spark
 
-
-BASE_DIR = Path(__file__).resolve().parents[2]
-SILVER_ROOT = BASE_DIR / "data" / "silver"
-GOLD_ROOT = BASE_DIR / "data" / "gold"
-WAREHOUSE_DIR = str(BASE_DIR / "spark_warehouse")
-
-KEY_CANDIDATES = ["num_acc", "Num_Acc", "NUM_ACC"]
-
-def get_spark(app_name: str):
-    builder = (
-        SparkSession.builder
-        .appName(app_name)
-        .master("local[*]")
-        .config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension")
-        .config("spark.sql.catalog.spark_catalog", "org.apache.spark.sql.delta.catalog.DeltaCatalog")
-        .config("spark.sql.warehouse.dir", WAREHOUSE_DIR)
-    )
-    spark = configure_spark_with_delta_pip(builder).getOrCreate()
-    print("Spark:", spark.version)
-    print("Scala:", spark.sparkContext._jvm.scala.util.Properties.versionNumberString())
-    return spark
 
 def normalize_columns(df):
     return df.toDF(*[c.strip().lower() for c in df.columns])
@@ -64,7 +45,7 @@ def main():
 
     acc_path = GOLD_ROOT / "accident"
     accident.write.format("delta").mode("overwrite").save(str(acc_path))
-    print(f"✅ Gold written: {acc_path} (rows={accident.count()})")
+    print(f"Gold written: {acc_path} (rows={accident.count()})")
 
     usa_path = GOLD_ROOT / "usagers"
     veh_path = GOLD_ROOT / "vehicules"

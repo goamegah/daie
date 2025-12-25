@@ -1,16 +1,7 @@
 import os
 import shutil
 from pathlib import Path
-
-LANDING = "../../data"
-BRONZE_ROOT = "../../data/bronze"
-
-FILES = [
-    "caract-2023.csv",
-    "lieux-2023.csv",
-    "usagers-2023.csv",
-    "vehicules-2023.csv",
-]
+from constants import *
 
 def main():
     os.makedirs(BRONZE_ROOT, exist_ok=True)
