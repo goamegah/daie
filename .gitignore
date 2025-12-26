@@ -229,4 +229,5 @@ scripts/
 notebook/
 
 .vscode/
-.kiro/
+.*
+local/
