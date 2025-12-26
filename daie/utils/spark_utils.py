@@ -9,20 +9,6 @@ from pyspark import errors as E
 from daie.utils.constants.metadata import RESOURCE_GROUP, TENANT_ID, STORAGE_ACCOUNT, CLIENT_ID, CLIENT_SECRET, SUBSCRIPTION_ID
 from daie.definitions import LOCAL_DATABRICKS_CONNECT_CONFIG_FILE
 
-def get_main_env() -> str:
-    """
-    This function verifies wich environment databricks is in
-
-    Returns:
-    str: The environment name, 'dev', 'test' or 'prod'
-    """
-    if check_if_scope_exists(SCOPE_NAME, get_client_secret_key(env=TEST)):
-        verified_env = TEST
-    elif check_if_scope_exists(SCOPE_NAME, get_client_secret_key(env=PROD)):
-        verified_env = PROD
-    else:
-        verified_env = DEV
-    return verified_env
 
 # Volume folders
 KAFKA_FOLDER = "kafka"
@@ -39,8 +25,7 @@ PROD = 'prod'
 
 SCOPE_NAME = "dataengineer"
 
-BASE_DIR = "abfss://daie-platform@{storage_account}.dfs.core.windows.net"
-NEW_BASE_DIR ="abfss://{container}@{storage_account}.dfs.core.windows.net"
+BASE_DIR ="abfss://{container}@{storage_account}.dfs.core.windows.net"
 
 spark = None
 dbutils = None
@@ -53,8 +38,39 @@ env_config = {
         SUBSCRIPTION_ID: "sid-daie-chn-dev",
         TENANT_ID: "tid-daie-chn-dev",
         RESOURCE_GROUP: "rg-daie-chn-dev"
-    }
+    },
+    # TEST: {
+    #     CLIENT_ID: "cid-daie-chn-test",
+    #     CLIENT_SECRET: "cst-daie-chn-test",
+    #     STORAGE_ACCOUNT: "sta-daie-chn-test",
+    #     SUBSCRIPTION_ID: "sid-daie-chn-test",
+    #     TENANT_ID: "tid-daie-chn-test",
+    #     RESOURCE_GROUP: "rg-daie-chn-test"
+    # },
+    # PROD: {
+    #     CLIENT_ID: "cid-daie-chn-prod",
+    #     CLIENT_SECRET: "cst-daie-chn-prod",
+    #     STORAGE_ACCOUNT: "sta-daie-chn-prod",
+    #     SUBSCRIPTION_ID: "sid-daie-chn-prod",
+    #     TENANT_ID: "tid-daie-chn-prod",
+    #     RESOURCE_GROUP: "rg-daie-chn-prod"
+    # }
 }
+
+def get_main_env() -> str:
+    """
+    This function verifies wich environment databricks is in
+
+    Returns:
+    str: The environment name, 'dev', 'test' or 'prod'
+    """
+    if check_if_scope_exists(SCOPE_NAME, get_client_secret_key(env=DEV)):
+        verified_env = DEV
+    elif check_if_scope_exists(SCOPE_NAME, get_client_secret_key(env=TEST)):
+        verified_env = TEST
+    else:
+        verified_env = PROD
+    return verified_env
 
 def read_json_file_as_dict(file_path: Path) -> Dict[str, Any]:
     """Read a JSON file and return it as a dictionary."""
@@ -100,22 +116,40 @@ def get_storage_account(env):
     return dbutils.secrets.get(scope=SCOPE_NAME, key=get_storage_account_key(env))
 
 def get_storage_account_key(env):
-    return env_config.get(env).get(STORAGE_ACCOUNT)
+    config = env_config.get(env)
+    if config is None:
+        raise ValueError(f"Environment '{env}' not found in env_config. Available: {list(env_config.keys())}")
+    return config.get(STORAGE_ACCOUNT)
 
 def get_client_secret_key(env):
-    return env_config.get(env).get(CLIENT_SECRET)
+    config = env_config.get(env)
+    if config is None:
+        raise ValueError(f"Environment '{env}' not found in env_config. Available: {list(env_config.keys())}")
+    return config.get(CLIENT_SECRET)
 
 def get_client_id_key(env):
-    return env_config.get(env).get(CLIENT_ID)
+    config = env_config.get(env)
+    if config is None:
+        raise ValueError(f"Environment '{env}' not found in env_config. Available: {list(env_config.keys())}")
+    return config.get(CLIENT_ID)
 
 def get_tenant_id_key(env):
-    return env_config.get(env).get(TENANT_ID)
+    config = env_config.get(env)
+    if config is None:
+        raise ValueError(f"Environment '{env}' not found in env_config. Available: {list(env_config.keys())}")
+    return config.get(TENANT_ID)
 
 def get_resource_group_key(env):
-    return env_config.get(env).get(RESOURCE_GROUP)
+    config = env_config.get(env)
+    if config is None:
+        raise ValueError(f"Environment '{env}' not found in env_config. Available: {list(env_config.keys())}")
+    return config.get(RESOURCE_GROUP)
 
 def get_subscription_id_key(env):
-    return env_config.get(env).get(SUBSCRIPTION_ID)
+    config = env_config.get(env)
+    if config is None:
+        raise ValueError(f"Environment '{env}' not found in env_config. Available: {list(env_config.keys())}")
+    return config.get(SUBSCRIPTION_ID)
 
 
 def get_endpoint(env):
@@ -272,7 +306,7 @@ def schema_exists(full_schema_name: str) -> bool:
         return False
 
 
-def read_delta_table_if_exists(table_identifier)-> DataFrame:
+def read_delta_table_if_exists(table_identifier) -> DataFrame:
     return read_delta_table(table_identifier) if check_if_table_exists(table_identifier) else None
 
 def read_delta_table_with_condition(table_identifier, condition) -> DataFrame:
@@ -287,18 +321,18 @@ def write_delta_table(dataframe, table_identifier, mode="append", partitions=[],
         write_delta_table_by_name(dataframe, table_identifier,mode, partitions, options, path)
 
 
-def write_delta_stream(new_df,table_identifier:str,partitions):
+def write_delta_stream(new_df, table_identifier:str, partitions):
     if check_if_table_identifier_is_path(table_identifier):
         path=extract_storage_path(table_identifier)
         write_delta_stream_by_path(new_df, path, partitions)
     else:
-        checkpoint_path = get_volume_location(
+        checkpoint_path = get_or_create_volume_location(
             sub_folder=f"{KAFKA_FOLDER}/{CHECKPOINT_FOLDER}",
             table_identifier=table_identifier
         )
         write_delta_stream_by_name(new_df, table_identifier, checkpoint_path, partitions)
 
-def get_volume_location(sub_folder, table_identifier=None, catalog=None, schema=None, entity=None):
+def get_or_create_volume_location(sub_folder, table_identifier=None, catalog=None, schema=None, entity=None):
     if table_identifier:
         catalog, schema, entity = table_identifier.split(".")
     full_schema_name = f"{catalog}.{schema}"
@@ -382,12 +416,12 @@ def grant_manage_on_schema(full_schema_name:str, group_name:str):
         spark.sql(grant_select_schema)
 
 def resolve_group(group:str):                                                     #pylint: disable=invalid-name
-    main_env = get_main_env()
+    dbw_env = get_main_env()
     if group == "DE":
-        return f"G-DE-daie-chn-{main_env}"
+        return f"G-DE-daie-chn-{dbw_env}"
     elif group == "DS":
-        return f"G-DS-daie-chn-{main_env}"
+        return f"G-DS-daie-chn-{dbw_env}"
 
-def grant_manage_on_schema_to(full_schema_name:str, group:str="DS"):                     #pylint: disable=invalid-name
+def grant_manage_on_schema_to(full_schema_name:str, group:str="DE"):                     #pylint: disable=invalid-name
     group_name = resolve_group(group)
     grant_manage_on_schema(full_schema_name, group_name)

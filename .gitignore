@@ -227,3 +227,7 @@ deployment/docs/
 
 scripts/
 notebook/
+
+.vscode/
+.*
+local/

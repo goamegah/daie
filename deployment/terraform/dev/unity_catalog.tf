@@ -203,19 +203,68 @@ resource "databricks_volume" "packages" {
 }
 
 # ==============================================================================
-# Unity Catalog Configuration avec Grants automatisés
+# Volumes supplémentaires pour artifacts
 # ==============================================================================
+resource "databricks_volume" "metadata" {
+	provider     = databricks.workspace
+	name         = "metadata"
+	catalog_name = databricks_catalog.bronze.name
+	schema_name  = databricks_schema.artifacts.name
+	volume_type  = "MANAGED"
+	comment      = "Volume pour les métadonnées des sources"
+}
 
-# ... (gardez vos ressources existantes) ...
+resource "databricks_volume" "config" {
+	provider     = databricks.workspace
+	name         = "config"
+	catalog_name = databricks_catalog.bronze.name
+	schema_name  = databricks_schema.artifacts.name
+	volume_type  = "MANAGED"
+	comment      = "Volume pour les fichiers de configuration"
+}
+
+resource "databricks_volume" "schema" {
+	provider     = databricks.workspace
+	name         = "schema"
+	catalog_name = databricks_catalog.bronze.name
+	schema_name  = databricks_schema.artifacts.name
+	volume_type  = "MANAGED"
+	comment      = "Volume pour les schémas de données"
+}
+
+# ==============================================================================
+# Volume init_scripts
+# ==============================================================================
+resource "databricks_volume" "init_scripts" {
+	provider     = databricks.workspace
+	name         = "init_scripts"
+	catalog_name = databricks_catalog.bronze.name
+	schema_name  = databricks_schema.artifacts.name
+	volume_type  = "MANAGED"
+	comment      = "Volume pour les scripts d'initialisation des clusters"
+}
 
 # ==============================================================================
 # Service Principal dans Databricks
 # ==============================================================================
 resource "databricks_service_principal" "github_actions" {
-  provider       = databricks.workspace
-  application_id = var.sp_client_id
-  display_name   = "SP GitHub Actions - ${var.environment}"
+  provider                   = databricks.workspace
+  application_id             = var.sp_client_id
+  display_name               = "SP GitHub Actions - ${var.environment}"
+  active                     = true
+  allow_cluster_create       = true
+  allow_instance_pool_create = false
 }
+
+# ==============================================================================
+# NOTE: Service Principal Usage Permissions
+# ==============================================================================
+# Pour permettre aux utilisateurs d'utiliser le SP dans les jobs, exécutez:
+# python deployment/devops/grant_sp_usage.py dev
+#
+# Ou manuellement dans Databricks UI:
+# Settings > Identity and Access > Service Principals > SP GitHub Actions - dev
+# > Permissions > Add > Group: users > Permission: CAN_USE
 
 # ==============================================================================
 # Grants - Permissions automatisées
@@ -298,6 +347,68 @@ resource "databricks_grants" "volume_packages" {
   depends_on = [
     databricks_service_principal.github_actions,
     databricks_volume.packages
+  ]
+}
+
+# Grants sur les volumes metadata, config, schema
+resource "databricks_grants" "volume_metadata" {
+  provider = databricks.workspace
+  volume   = "${databricks_catalog.bronze.name}.${databricks_schema.artifacts.name}.${databricks_volume.metadata.name}"
+  
+  grant {
+    principal  = databricks_service_principal.github_actions.application_id
+    privileges = ["READ_VOLUME", "WRITE_VOLUME"]
+  }
+  
+  depends_on = [
+    databricks_service_principal.github_actions,
+    databricks_volume.metadata
+  ]
+}
+
+resource "databricks_grants" "volume_config" {
+  provider = databricks.workspace
+  volume   = "${databricks_catalog.bronze.name}.${databricks_schema.artifacts.name}.${databricks_volume.config.name}"
+  
+  grant {
+    principal  = databricks_service_principal.github_actions.application_id
+    privileges = ["READ_VOLUME", "WRITE_VOLUME"]
+  }
+  
+  depends_on = [
+    databricks_service_principal.github_actions,
+    databricks_volume.config
+  ]
+}
+
+resource "databricks_grants" "volume_schema" {
+  provider = databricks.workspace
+  volume   = "${databricks_catalog.bronze.name}.${databricks_schema.artifacts.name}.${databricks_volume.schema.name}"
+  
+  grant {
+    principal  = databricks_service_principal.github_actions.application_id
+    privileges = ["READ_VOLUME", "WRITE_VOLUME"]
+  }
+  
+  depends_on = [
+    databricks_service_principal.github_actions,
+    databricks_volume.schema
+  ]
+}
+
+# Grant sur le volume init_scripts
+resource "databricks_grants" "volume_init_scripts" {
+  provider = databricks.workspace
+  volume   = "${databricks_catalog.bronze.name}.${databricks_schema.artifacts.name}.${databricks_volume.init_scripts.name}"
+  
+  grant {
+    principal  = databricks_service_principal.github_actions.application_id
+    privileges = ["READ_VOLUME", "WRITE_VOLUME"]
+  }
+  
+  depends_on = [
+    databricks_service_principal.github_actions,
+    databricks_volume.init_scripts
   ]
 }
 
