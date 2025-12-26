@@ -7,3 +7,4 @@ databricks-sdk
 databricks-feature-engineering
 azure-keyvault-secrets 
 azure-identity
+pyspark==3.5.0
