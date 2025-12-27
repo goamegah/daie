@@ -19,7 +19,7 @@ def load_from_raw(
     metadata: dict,
     file_location: str,
     options: dict
-):
+) -> DataFrame:
     format = metadata.get("format", "")
     raw_df = su.spark.read.options(**options).format(format).load(file_location)
     return raw_df
@@ -43,7 +43,7 @@ def transform_dataframe_columns(
 def start(
     env: str,
     metadata: dict
-):
+) -> dict[str, DataFrame]:
     options = get_options(metadata=metadata)
     raw_df = load_from_raw(
         metadata=metadata,
@@ -58,7 +58,7 @@ def start(
 def run(
     inputs: dict,
     metadata: dict
-):
+) -> dict[str, DataFrame]:
     raw_df = inputs[RAW_KEY]
     transformed_df = transform_dataframe_columns(
         raw_df=raw_df,
@@ -74,7 +74,7 @@ def end(
     env: str,
     metadata: dict,
     outputs: dict[str, DataFrame]
-):
+) -> None:
     new_df = outputs[NEW_KEY]
     su.write_delta_table(
         dataframe=new_df,
@@ -86,7 +86,7 @@ def main(
     source: str,
     entity: str,
     **_
-):
+) -> None:
     metadata = ec.get_source_metadata(
         env=env,
         source=source,
