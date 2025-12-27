@@ -61,7 +61,7 @@ def run(
 ):
     raw_df = inputs[RAW_KEY]
     transformed_df = transform_dataframe_columns(
-        df=raw_df,
+        raw_df=raw_df,
         metadata=metadata
     )
 
