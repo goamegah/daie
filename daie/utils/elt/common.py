@@ -89,4 +89,33 @@ def get_or_create_volume_location_from_metadata(
         sub_folder=sub_folder
     )
 
+def get_raw_table_identifier_from_metadata(
+    env: str,
+    metadata: dict
+):
+    catalog = resolve_catalog(layer="bronze")
+    source = metadata["source"]
+    entity = metadata["entity"]
+    return get_table_identifier(
+        env=env,
+        catalog=catalog,
+        stage="raw",
+        base_name=source,
+        entity=entity
+    )
+
+def get_table_identifier(
+    env,
+    catalog: str,
+    stage: str,
+    base_name: str,
+    entity: str
+):
+    schema = build_schema_name(
+        env=env,
+        stage=stage,
+        base_name=base_name
+    )
+    table_identifier = f"{catalog}.{schema}.{entity}"
+    return table_identifier
     

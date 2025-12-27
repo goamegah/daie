@@ -1,0 +1,10 @@
+source: opendata
+entity: caract_v1
+transient_dir: "{{base_dir}}/transient/source/{{env}}/opendata/caract_v1"
+format: "csv"
+options:
+  header: true
+  inferSchema: true
+  sep: ";"
+  multiLine: true
+  encoding: "UTF-8"

@@ -1,3 +1,0 @@
-source: opendata
-entity: accidents_v1
-transient_dir: "{{base_dir}}/transient/source/{{env}}/opendata/accident_v1"
