@@ -78,7 +78,8 @@ def end(
     new_df = outputs[NEW_KEY]
     su.write_delta_table(
         dataframe=new_df,
-        table_identifier=ec.get_raw_table_identifier_from_metadata(env=env, metadata=metadata)
+        table_identifier=ec.get_raw_table_identifier_from_metadata(env=env, metadata=metadata),
+        mode="overwrite"
     )
 
 def main(

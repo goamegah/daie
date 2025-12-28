@@ -63,7 +63,8 @@ def end(
     curated_df = outputs[CURATED_KEY]
     su.write_delta_table(
         dataframe=curated_df,
-        table_identifier=ec.get_curated_table_identifier_from_metadata(env=env, metadata=metadata)
+        table_identifier=ec.get_curated_table_identifier_from_metadata(env=env, metadata=metadata),
+        mode="overwrite"
     )
     
 def main(
