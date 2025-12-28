@@ -1,7 +1,7 @@
 # tests/elt/raw_file_load_test.py
 from unittest.mock import patch, MagicMock, call
 import pytest
-from daie.jobs.elt import raw_file_load
+from daie.jobs.elt.src import raw_file_load
 
 
 def test_move_files_with_single_file():
