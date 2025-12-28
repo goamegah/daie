@@ -104,6 +104,21 @@ def get_raw_table_identifier_from_metadata(
         entity=entity
     )
 
+def get_curated_table_identifier_from_metadata(
+    env: str,
+    metadata: dict
+):
+    catalog = resolve_catalog(layer="silver")
+    source = metadata["source"]
+    entity = metadata["entity"]
+    return get_table_identifier(
+        env=env,
+        catalog=catalog,
+        stage="curated",
+        base_name=source,
+        entity=entity
+    )
+
 def get_table_identifier(
     env,
     catalog: str,
