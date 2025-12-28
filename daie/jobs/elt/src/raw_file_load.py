@@ -4,7 +4,7 @@ import daie.utils.elt.common as ec
 import daie.utils.spark_utils as su
 
 
-JOB = "daie.jobs.elt.raw_file_load"
+JOB = "daie.jobs.elt.src.raw_file_load"
 
 
 def move_files(src, dst) -> None:

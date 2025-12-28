@@ -4,7 +4,7 @@ import daie.utils.spark_utils as su
 from pyspark.sql import DataFrame
 
 
-JOB = "daie.jobs.elt.curated_table_load"
+JOB = "daie.jobs.elt.src.curated_table_load"
 RAW_KEY = "raw"
 CURATED_KEY = "curated"
 

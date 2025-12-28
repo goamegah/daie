@@ -4,7 +4,7 @@ import daie.utils.spark_utils as su
 from pyspark.sql import DataFrame
 
 
-JOB = "daie.jobs.elt.raw_table_load"
+JOB = "daie.jobs.elt.src.raw_table_load"
 RAW_KEY = "raw"
 NEW_KEY = "new"
 
