@@ -1,72 +1,156 @@
-import os
-from pathlib import Path
-from pyspark.sql import SparkSession
-from delta import configure_spark_with_delta_pip
 from pyspark.sql import functions as F
-from constants import *
-from spark_session import get_spark
+from pyspark.sql import SparkSession
+import dbutils
 
+spark = SparkSession.builder.getOrCreate()
+
+YEAR = "2023"
+SCHEMA = "accidents"
+
+SILVER_CATALOG = "daie_chn_dev_silver"
+GOLD_CATALOG   = "daie_chn_dev_gold"
+
+V_SILVER = "silver"
+V_GOLD   = "gold"
+
+SILVER_ROOT = f"/Volumes/{SILVER_CATALOG}/{SCHEMA}/{V_SILVER}/baac/{YEAR}"
+GOLD_ROOT   = f"/Volumes/{GOLD_CATALOG}/{SCHEMA}/{V_GOLD}/baac/{YEAR}"
+
+KEY = "num_acc"
 
 def normalize_columns(df):
     return df.toDF(*[c.strip().lower() for c in df.columns])
 
-def detect_key(cols):
-    cols_set = set(cols)
-    for k in KEY_CANDIDATES:
-        if k.lower() in cols_set:
-            return k.lower()
-    return None
+def write_gold_table(df, rel_path: str, table_name: str):
+    """
+    Ecrit df en Delta dans le volume Gold + crée table UC pointant vers la location.
+    rel_path : sous-dossier dans GOLD_ROOT
+    table_name : nom complet UC, ex: daie_chn_dev_gold.accidents.accidents_by_dep_2023
+    """
+    path = f"{GOLD_ROOT}/{rel_path}"
+    (df.write.format("delta")
+        .mode("overwrite")
+        .option("overwriteSchema", "true")
+        .save(path))
+    spark.sql(f"DROP TABLE IF EXISTS {table_name}")
+    spark.sql(f"CREATE TABLE {table_name} USING DELTA LOCATION '{path}'")
+    return path
 
-def read_silver_delta(spark, name: str):
-    path = SILVER_ROOT / name
-    if not path.exists():
-        raise FileNotFoundError(f"Silver delta folder not found: {path}")
-    return spark.read.format("delta").load(str(path))
 
-def main():
-    os.makedirs(GOLD_ROOT, exist_ok=True)
+spark.sql(f"CREATE SCHEMA IF NOT EXISTS {GOLD_CATALOG}.{SCHEMA}")
+dbutils.fs.mkdirs(GOLD_ROOT)
 
-    spark = get_spark("job3-gold-local")
 
-    #read silver
-    caract = normalize_columns(read_silver_delta(spark, "caract"))
-    lieux  = normalize_columns(read_silver_delta(spark, "lieux"))
-    usagers = normalize_columns(read_silver_delta(spark, "usagers"))
-    vehicules = normalize_columns(read_silver_delta(spark, "vehicules"))
+caract    = normalize_columns(spark.table(f"{SILVER_CATALOG}.{SCHEMA}._caract_{YEAR}"))
+lieux     = normalize_columns(spark.table(f"{SILVER_CATALOG}.{SCHEMA}._lieux_{YEAR}"))
+usagers   = normalize_columns(spark.table(f"{SILVER_CATALOG}.{SCHEMA}._usagers_{YEAR}"))
+vehicules = normalize_columns(spark.table(f"{SILVER_CATALOG}.{SCHEMA}._vehicules_{YEAR}"))
 
-    key1 = detect_key(caract.columns)
-    key2 = detect_key(lieux.columns)
-    if not key1 or not key2 or key1 != key2:
-        raise ValueError(f"Clé join introuvable ou différente. caract:{key1}, lieux:{key2}")
+accident = caract.join(lieux, on=KEY, how="inner")
 
-    KEY = key1  # "num_acc"
+accident_table = f"{GOLD_CATALOG}.{SCHEMA}.accident_{YEAR}"
+accident_path = write_gold_table(accident, "accident", accident_table)
+print(f"Created {accident_table} -> {accident_path} (rows={accident.count()})")
 
-    accident = caract.join(lieux, on=KEY, how="inner")
+usagers_table = f"{GOLD_CATALOG}.{SCHEMA}.usagers_{YEAR}"
+vehicules_table = f"{GOLD_CATALOG}.{SCHEMA}.vehicules_{YEAR}"
 
-    acc_path = GOLD_ROOT / "accident"
-    accident.write.format("delta").mode("overwrite").save(str(acc_path))
-    print(f"Gold written: {acc_path} (rows={accident.count()})")
+write_gold_table(usagers, "usagers", usagers_table)
+write_gold_table(vehicules, "vehicules", vehicules_table)
+print(f"Created {usagers_table} and {vehicules_table}")
 
-    usa_path = GOLD_ROOT / "usagers"
-    veh_path = GOLD_ROOT / "vehicules"
+# AGGREGATIONS
 
-    usagers.write.format("delta").mode("overwrite").save(str(usa_path))
-    vehicules.write.format("delta").mode("overwrite").save(str(veh_path))
+# ccidents by department
+if "dep" in accident.columns:
+    acc_by_dep = (
+        accident.groupBy("dep")
+        .agg(F.count("*").alias("nb_accidents"))
+        .orderBy(F.desc("nb_accidents"))
+    )
+    t = f"{GOLD_CATALOG}.{SCHEMA}.accidents_by_dep_{YEAR}"
+    write_gold_table(acc_by_dep, "accidents_by_dep", t)
+    print(f"Created {t}")
+else:
+    print("dep not found -> skip accidents_by_dep")
 
-    print(f"Gold written: {usa_path} (rows={usagers.count()})")
-    print(f"Gold written: {veh_path} (rows={vehicules.count()})")
+# by dep n grav
+if "dep" in accident.columns and "grav" in accident.columns:
+    acc_dep_grav = (
+        accident.groupBy("dep", "grav")
+        .agg(F.count("*").alias("nb_accidents"))
+    )
+    t = f"{GOLD_CATALOG}.{SCHEMA}.accidents_by_dep_grav_{YEAR}"
+    write_gold_table(acc_dep_grav, "accidents_by_dep_grav", t)
+    print(f"✅ Created {t}")
+else:
+    print("dep/grav not found -> skip accidents_by_dep_grav")
 
-    cols = set(accident.columns)
-    if "dep" in cols and "grav" in cols:
-        agg = accident.groupBy("dep", "grav").agg(F.count("*").alias("nb_accidents"))
-        agg_path = GOLD_ROOT / "agg_dep_grav"
-        agg.write.format("delta").mode("overwrite").save(str(agg_path))
-        print(f"Gold aggregation written: {agg_path} (rows={agg.count()})")
+#by weather 
+if "atm" in accident.columns:
+    acc_by_atm = (
+        accident.groupBy("atm")
+        .agg(F.count("*").alias("nb_accidents"))
+        .orderBy(F.desc("nb_accidents"))
+    )
+    t = f"{GOLD_CATALOG}.{SCHEMA}.accidents_by_weather_{YEAR}"
+    write_gold_table(acc_by_atm, "accidents_by_weather", t)
+    print(f"Created {t}")
+else:
+    print("atm not found -> skip accidents_by_weather")
+
+if "lum" in accident.columns:
+    acc_by_lum = (
+        accident.groupBy("lum")
+        .agg(F.count("*").alias("nb_accidents"))
+        .orderBy(F.desc("nb_accidents"))
+    )
+    t = f"{GOLD_CATALOG}.{SCHEMA}.accidents_by_lum_{YEAR}"
+    write_gold_table(acc_by_lum, "accidents_by_lum", t)
+    print(f"✅ Created {t}")
+else:
+    print("lum not found -> skip accidents_by_lum")
+
+# victims per accident + join dep (optional)
+if KEY in usagers.columns:
+    victims_per_acc = (
+        usagers.groupBy(KEY)
+        .agg(F.count("*").alias("nb_victimes"))
+    )
+
+    if "dep" in accident.columns:
+        victims_dep = (
+            victims_per_acc
+            .join(accident.select(KEY, "dep").dropDuplicates([KEY]), on=KEY, how="left")
+            .groupBy("dep")
+            .agg(
+                F.avg("nb_victimes").alias("avg_victimes_per_accident"),
+                F.sum("nb_victimes").alias("total_victimes"),
+                F.countDistinct(KEY).alias("nb_accidents")
+            )
+            .orderBy(F.desc("total_victimes"))
+        )
+        t = f"{GOLD_CATALOG}.{SCHEMA}.victims_stats_by_dep_{YEAR}"
+        write_gold_table(victims_dep, "victims_stats_by_dep", t)
+        print(f"created {t}")
     else:
-        print("colonnes dep ou grav absentes dans accident.")
+        t = f"{GOLD_CATALOG}.{SCHEMA}.victims_per_accident_{YEAR}"
+        write_gold_table(victims_per_acc, "victims_per_accident", t)
+        print(f"Created {t}")
+else:
+    print("num_acc not found in usagers -> skip victims KPIs")
 
-    spark.stop()
-    print("JOB 3 OK")
+# accidents by vehicle type using vehicules
+if KEY in vehicules.columns and "catv" in vehicules.columns:
+    acc_by_vehicle = (
+        vehicules.groupBy("catv")
+        .agg(F.countDistinct(KEY).alias("nb_accidents"))
+        .orderBy(F.desc("nb_accidents"))
+    )
+    t = f"{GOLD_CATALOG}.{SCHEMA}.accidents_by_vehicle_{YEAR}"
+    write_gold_table(acc_by_vehicle, "accidents_by_vehicle", t)
+    print(f"Created {t}")
+else:
+    print("catv/num_acc not found -> skip accidents_by_vehicle")
 
-if __name__ == "__main__":
-    main()
+print("JOB 3 OK")

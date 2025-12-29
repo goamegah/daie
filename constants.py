@@ -1,23 +1,17 @@
-from pathlib import Path
-
+SCHEMA  = "accidents"
+V_BRONZE  = "bronze"
+V_SILVER  = "silver"
+V_GOLD    = "gold"
+YEAR = "2023"
 SEP = ";"
-BASE_DIR = Path(__file__).resolve().parents[2]
-BRONZE_ROOT = BASE_DIR / "data" / "bronze"
-SILVER_ROOT = BASE_DIR / "data" / "silver"
-GOLD_ROOT = BASE_DIR / "data" / "gold"
-WAREHOUSE_DIR = str(BASE_DIR / "spark_warehouse")
-KEY_CANDIDATES = ["num_acc", "Num_Acc", "NUM_ACC"]
+LANDING_ROOT = "/Volumes/daie_chn_dev_bronze/accidents/landing/baac/2023"
+BRONZE_ROOT = "/Volumes/daie_chn_dev_bronze/accidents/bronze/baac/2023"
+SILVER_ROOT = "/Volumes/daie_chn_dev_silver/accidents/silver/baac/2023"
+GOLD_ROOT   = "/Volumes/daie_chn_dev_gold/accidents/gold/baac/2023"
+
 DATASETS = {
     "caract": "caract-2023.csv",
     "lieux": "lieux-2023.csv",
     "usagers": "usagers-2023.csv",
     "vehicules": "vehicules-2023.csv",
 }
-
-LANDING = "../../data"
-FILES = [
-    "caract-2023.csv",
-    "lieux-2023.csv",
-    "usagers-2023.csv",
-    "vehicules-2023.csv",
-]

@@ -1,27 +1,17 @@
-import os
-import shutil
-from pathlib import Path
-from constants import *
+from dbx_config import *
+import dbutils
+from pyspark.sql import SparkSession
 
-def main():
-    os.makedirs(BRONZE_ROOT, exist_ok=True)
+spark = SparkSession.builder.getOrCreate()
 
-    missing = []
-    for f in FILES:
-        src = Path(LANDING) / f
-        if not src.exists():
-            missing.append(str(src))
-    if missing:
-        raise FileNotFoundError("Fichiers manquants:\n" + "\n".join(missing))
+FILES = ["caract-2023.csv", "lieux-2023.csv", "usagers-2023.csv", "vehicules-2023.csv"]
 
-    for f in FILES:
-        src = Path(LANDING) / f
-        dst = Path(BRONZE_ROOT) / f
-        shutil.copyfile(src, dst)
+LANDING_ROOT = vol_path(BRONZE_CATALOG, SCHEMA, V_LANDING, "baac", YEAR)
+BRONZE_ROOT  = vol_path(BRONZE_CATALOG, SCHEMA, V_BRONZE,  "baac", YEAR)
 
-    print("JOB 1 OK - fichiers copiés en bronze:")
-    for f in FILES:
-        print(" -", str(Path(BRONZE_ROOT) / f))
+dbutils.fs.mkdirs(BRONZE_ROOT)
 
-if __name__ == "__main__":
-    main()
+for f in FILES:
+    dbutils.fs.cp(f"{LANDING_ROOT}/{f}", f"{BRONZE_ROOT}/{f}", True)
+
+print("Bronze files:", [x.path for x in dbutils.fs.ls(BRONZE_ROOT)])
