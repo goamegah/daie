@@ -1,0 +1,5 @@
+datamart: opendata
+entity: accident_v1
+inputs:
+  entities:
+    - entity: ""

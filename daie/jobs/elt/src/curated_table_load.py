@@ -60,7 +60,7 @@ def end(
     outputs: dict[str, DataFrame],
     metadata: dict
 ) -> None:
-    curated_df = outputs[CURATED_KEY]
+    curated_df: DataFrame = outputs[CURATED_KEY]
     su.write_delta_table(
         dataframe=curated_df,
         table_identifier=ec.get_curated_table_identifier_from_metadata(env=env, metadata=metadata),
@@ -73,7 +73,7 @@ def main(
     entity: str,
     **_
 ) -> None:
-    metadata = ec.get_source_metadata(
+    metadata: dict = ec.get_source_metadata(
         env=env,
         source=source,
         entity=entity

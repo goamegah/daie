@@ -88,7 +88,7 @@ def main(
     entity: str,
     **_
 ) -> None:
-    metadata = ec.get_source_metadata(
+    metadata: dict = ec.get_source_metadata(
         env=env,
         source=source,
         entity=entity

@@ -61,6 +61,11 @@ def get_source_metadata(env, source, entity):
     artifact_path = f"{base_path}/source/{source}/{entity}.yml"
     return read_artifacts_file(env, artifact_path)
 
+def get_datamart_metadata(env, datamart, entity):
+    base_path = get_artifact_base_path(env)
+    artifact_path = f"{base_path}/datamart/{datamart}/{entity}.yml"
+    return read_artifacts_file(env, artifact_path)
+
 def build_schema_name(
     env: str,
     stage: str,
