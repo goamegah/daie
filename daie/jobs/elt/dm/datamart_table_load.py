@@ -52,7 +52,7 @@ def end(
 ) -> None:
     datamart_df: DataFrame = outputs[DATAMART_KEY]
     su.write_delta_table(
-        df=datamart_df,
+        dataframe=datamart_df,
         table_identifier=ec.get_datamart_table_identifier_from_metadata(env=env, metadata=metadata),
         mode="overwrite"
     )
