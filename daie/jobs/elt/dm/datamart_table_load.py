@@ -14,9 +14,10 @@ def start(
     metadata: dict
 ) -> dict:
     inputs: dict = {}
+    datamart = metadata["datamart"]
     for entity in metadata["inputs"]["entities"]:
         entity_name: str = entity["entity"]
-        source_metadata: dict = ec.get_source_metadata(env=env, entity=entity_name)
+        source_metadata: dict = ec.get_source_metadata(env=env, source=datamart, entity=entity_name)
         curated_df: DataFrame = su.read_delta_table_if_exists(
             table_identifier=ec.get_curated_table_identifier_from_metadata(env=env, metadata=source_metadata)
         )
