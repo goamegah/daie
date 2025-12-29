@@ -31,7 +31,9 @@ def run(
 ) -> dict:
     joined_df: DataFrame = None
     for entity in metadata["inputs"]["entities"]:
-        curated_df: DataFrame = inputs.get(entity["entity"])
+        # curated_df: DataFrame = inputs.get(entity["entity"])
+        entity_name = entity["entity"]
+        curated_df: DataFrame = inputs.get(entity_name).alias(entity_name)
         if joined_df:
             joined_df = joined_df.join(
                 curated_df, 
