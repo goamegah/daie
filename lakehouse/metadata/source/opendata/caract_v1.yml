@@ -8,3 +8,83 @@ options:
   sep: ";"
   multiLine: true
   encoding: "UTF-8"
+  
+schema:
+  columns:
+    - name: "Num_Acc"
+      data_type: "bigint"
+      nullable: false
+      metadata:
+        comment: "Numéro d'identification de l'accident"
+
+    - name: "jour"
+      data_type: "int"
+      nullable: true
+      metadata:
+        comment: "Jour de l'accident"
+
+    - name: "mois"
+      data_type: "int"
+      nullable: true
+      metadata:
+        comment: "Mois de l'accident"
+
+    - name: "an"
+      data_type: "int"
+      nullable: true
+      metadata:
+        comment: "Année de l'accident"
+
+    - name: "hrmn"
+      data_type: "timestamp"
+      nullable: true
+      metadata:
+        comment: "Heure et minute de l'accident"
+
+    - name: "lum"
+      data_type: "double"
+      nullable: true
+      metadata:
+        comment: "Condition de luminosité"
+
+    - name: "atm"
+      data_type: "double"
+      nullable: true
+      metadata:
+        comment: "Condition atmosphérique"
+
+    - name: "col"
+      data_type: "double"
+      nullable: true
+      metadata:
+        comment: "Type de collision"
+
+    - name: "dep"
+      data_type: "string"
+      nullable: true
+      metadata:
+        comment: "Département de l'accident"
+
+    - name: "com"
+      data_type: "string"
+      nullable: true
+      metadata:
+        comment: "Commune de l'accident"
+
+    - name: "adr"
+      data_type: "string"
+      nullable: true
+      metadata:
+        comment: "Adresse de l'accident"
+
+    - name: "lat"
+      data_type: "string"
+      nullable: true
+      metadata:
+        comment: "Latitude de l'accident"
+
+    - name: "long"
+      data_type: "string"
+      nullable: true
+      metadata:
+        comment: "Longitude de l'accident"
