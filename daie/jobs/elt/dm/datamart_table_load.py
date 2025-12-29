@@ -25,27 +25,54 @@ def start(
             inputs[entity_name] = curated_df
     return inputs
 
+
+
 def run(
     inputs: dict,
     metadata: dict
 ) -> dict:
-    joined_df: DataFrame = None
+    joined_df: DataFrame | None = None
+
     for entity in metadata["inputs"]["entities"]:
-        # curated_df: DataFrame = inputs.get(entity["entity"])
         entity_name = entity["entity"]
-        curated_df: DataFrame = inputs.get(entity_name).alias(entity_name)
-        if joined_df:
+
+        curated_df: DataFrame = inputs[entity_name].alias(entity_name)
+
+        if joined_df is not None:
+            join_keys = entity.get("join", {}).get("keys", [])
+            join_type = entity.get("join", {}).get("type", "inner")
+
+            conditions = [
+                F.col(key["join_entity_key"]) == F.col(key["main_entity_key"])
+                for key in join_keys
+            ]
+
             joined_df = joined_df.join(
-                curated_df, 
-                on=[F.col(key["join_entity_key"]) == F.col(key["main_entity_key"]) for key in entity.get("join", {}).get("keys", [])], 
-                how=entity.get("join", {}).get("type", "inner")
+                curated_df,
+                on=conditions,
+                how=join_type
             )
         else:
             joined_df = curated_df
-    outputs: dict = {
-        DATAMART_KEY: joined_df
+
+    # Filtre métier optionnel
+    filter_expression = metadata["inputs"].get("filter_expression")
+    if filter_expression:
+        joined_df = joined_df.filter(filter_expression)
+
+    # Projection finale pilotée par la métadonnée
+    schema_columns = metadata["schema"]["columns"]
+    select_expr = [
+        f"{col['metadata']['mapping_rules']} AS {col['name']}"
+        for col in schema_columns
+    ]
+
+    final_df = joined_df.selectExpr(*select_expr)
+
+    return {
+        DATAMART_KEY: final_df
     }
-    return outputs
+
 
 def end(
     env: str,
