@@ -5,21 +5,18 @@ mapping_rules: ""
 inputs:
   entities:
     - entity: "caract_v1"
-
     - entity: "lieu_v1"
       join:
         type: "inner"
         keys:
           - main_entity_key: "caract_v1.Num_Acc"
             join_entity_key: "lieu_v1.Num_Acc"
-
     - entity: "vehicule_v1"
       join:
         type: "inner"
         keys:
           - main_entity_key: "lieu_v1.Num_Acc"
             join_entity_key: "vehicule_v1.Num_Acc"
-
     - entity: "usager_v1"
       join:
         type: "inner"
@@ -28,7 +25,6 @@ inputs:
             join_entity_key: "usager_v1.Num_Acc"
           - main_entity_key: "vehicule_v1.id_vehicule"
             join_entity_key: "usager_v1.id_vehicule"
-
   filter_expression: ""
 
 schema:
