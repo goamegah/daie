@@ -34,8 +34,8 @@ def run(
     joined_df: DataFrame | None = None
 
     for entity in metadata["inputs"]["entities"]:
-        # entity_name = entity["entity"]
-        curated_df: DataFrame = inputs[entity["entity"]]
+        entity_name = entity["entity"]
+        curated_df: DataFrame = inputs.get(entity_name).alias(entity_name)
 
         if joined_df is not None:
             join_keys = entity.get("join", {}).get("keys", [])
