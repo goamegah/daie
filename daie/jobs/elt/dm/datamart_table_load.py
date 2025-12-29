@@ -93,6 +93,7 @@ def main(
 ) -> None:
     metadata: dict = ec.get_datamart_metadata(env=env, datamart=datamart, entity=entity)
     inputs: dict = start(env, metadata)
+    print("INPUTS LOADED:", list(inputs.keys()))
     outputs: dict = run(inputs, metadata)
     end(
         env=env,
