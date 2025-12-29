@@ -2,4 +2,25 @@ datamart: opendata
 entity: accident_v1
 inputs:
   entities:
-    - entity: ""
+    - entity: "caract_v1"
+    - entity: "lieu_v1"
+      join:
+        type: "inner"
+        keys:
+          - main_entity_key: "caract_v1.num_Acc"
+            join_entity_key: "lieu_v1.num_Acc"
+    - entity: "vehicule_v1"
+      join:
+        type: "inner"
+        keys:
+          - main_entity_key: "lieu_v1.num_Acc"
+            join_entity_key: "vehicule_v1.num_Acc"
+    - entity: "usager_v1"
+      join:
+        type: "inner"
+        keys:
+          - main_entity_key: "vehicule_v1.num_Acc"
+            join_entity_key: "usager_v1.num_Acc"
+          - main_entity_key: "vehicule_v1.id_vehicule"
+            join_entity_key: "usager_v1.id_vehicule"
+  filter_expression: ""

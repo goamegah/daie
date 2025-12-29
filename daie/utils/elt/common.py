@@ -124,6 +124,21 @@ def get_curated_table_identifier_from_metadata(
         entity=entity
     )
 
+def get_datamart_table_identifier_from_metadata(
+    env: str,
+    metadata: dict
+):
+    catalog = resolve_catalog(layer="gold")
+    datamart = metadata["datamart"]
+    entity = metadata["entity"]
+    return get_table_identifier(
+        env=env,
+        catalog=catalog,
+        stage="datamart",
+        base_name=datamart,
+        entity=entity
+    )
+
 def get_table_identifier(
     env,
     catalog: str,

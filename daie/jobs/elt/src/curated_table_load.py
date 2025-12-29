@@ -8,6 +8,7 @@ JOB = "daie.jobs.elt.src.curated_table_load"
 RAW_KEY = "raw"
 CURATED_KEY = "curated"
 
+
 #TODO: customize per entity
 def transform_dataframe_columns(
     raw_df: DataFrame,
