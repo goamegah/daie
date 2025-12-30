@@ -1,0 +1,12 @@
+{
+	"name": "ls_github_raw",
+	"type": "Microsoft.DataFactory/factories/linkedservices",
+	"properties": {
+		"type": "Web",
+		"typeProperties": {
+			"authenticationType": "Anonymous",
+			"url": "https://raw.githubusercontent.com"
+		},
+		"annotations": []
+	}
+}

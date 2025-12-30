@@ -1,0 +1,9 @@
+{
+	"name": "adf-daie-chn-dev",
+	"location": "westeurope",
+	"identity": {
+		"type": "SystemAssigned",
+		"principalId": "0c67784f-a84d-4376-b009-f000a71e74cd",
+		"tenantId": "20225d8c-26c2-42d8-becc-f275b34b7356"
+	}
+}

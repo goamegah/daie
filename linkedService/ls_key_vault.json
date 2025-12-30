@@ -1,0 +1,11 @@
+{
+	"name": "ls_key_vault",
+	"type": "Microsoft.DataFactory/factories/linkedservices",
+	"properties": {
+		"type": "AzureKeyVault",
+		"typeProperties": {
+			"baseUrl": "https://kv-daie-chn-dev-2025.vault.azure.net/"
+		},
+		"annotations": []
+	}
+}
