@@ -178,7 +178,6 @@ cython_debug/
 .azure_storage.json
 setup.py.txt
 
-<<<<<<< HEAD
 # Local .terraform directories
 .terraform/
 
@@ -233,6 +232,6 @@ notebook/
 .*
 local/
 
-# mlflow 
-mlruns/
 
+#mlflow
+mlruns/
