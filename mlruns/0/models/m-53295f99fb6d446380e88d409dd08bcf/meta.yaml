@@ -1,0 +1,10 @@
+artifact_location: file:///C:/Users/0204528N/fyc/daie/mlruns/0/models/m-53295f99fb6d446380e88d409dd08bcf/artifacts
+creation_timestamp: 1766434578996
+experiment_id: '0'
+last_updated_timestamp: 1766434600545
+model_id: m-53295f99fb6d446380e88d409dd08bcf
+model_type: null
+name: model
+source_run_id: 94783c5a23604e3da53ee658dacb9429
+status: 2
+status_message: null
