@@ -32,6 +32,24 @@ output "storage_account_id" {
 }
 
 # ==============================================================================
+# Outputs Data Factory
+# ==============================================================================
+output "data_factory_name" {
+  description = "Nom du Data Factory"
+  value       = azurerm_data_factory.this.name
+}
+
+output "data_factory_id" {
+  description = "ID du Data Factory"
+  value       = azurerm_data_factory.this.id
+}
+
+output "data_factory_identity_principal_id" {
+  description = "Principal ID de l'identité managée du Data Factory"
+  value       = azurerm_data_factory.this.identity[0].principal_id
+}
+
+# ==============================================================================
 # Outputs Databricks
 # ==============================================================================
 output "databricks_workspace_name" {
