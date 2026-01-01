@@ -1,0 +1,44 @@
+{
+	"name": "pipeline1",
+	"properties": {
+		"activities": [
+			{
+				"name": "10_pl_load_dm_opendata_accident",
+				"type": "DatabricksJob",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"jobId": "334973601440372",
+					"jobParameters": {
+						"env": {
+							"value": "@pipeline().parameters.env",
+							"type": "Expression"
+						},
+						"entity": "accident_v1",
+						"datamart": "opendata"
+					}
+				},
+				"linkedServiceName": {
+					"referenceName": "LS_Databricks_Workspace",
+					"type": "LinkedServiceReference"
+				}
+			}
+		],
+		"parameters": {
+			"env": {
+				"type": "string"
+			}
+		},
+		"folder": {
+			"name": "10_datamart_load/accident"
+		},
+		"annotations": []
+	}
+}
