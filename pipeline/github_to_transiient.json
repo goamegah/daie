@@ -1,38 +1,103 @@
 {
-	"name": "pipeline1",
+	"name": "github_to_transiient",
 	"properties": {
 		"activities": [
 			{
-				"name": "Get Metadata1",
-				"type": "GetMetadata",
+				"name": "ForEach1",
+				"type": "ForEach",
 				"dependsOn": [],
-				"policy": {
-					"timeout": "0.12:00:00",
-					"retry": 0,
-					"retryIntervalInSeconds": 30,
-					"secureOutput": false,
-					"secureInput": false
-				},
 				"userProperties": [],
 				"typeProperties": {
-					"dataset": {
-						"referenceName": "ds_github_csv",
-						"type": "DatasetReference",
-						"parameters": {
-							"folderPath": "dataset/data"
+					"items": {
+						"value": "@pipeline().parameters.folders",
+						"type": "Expression"
+					},
+					"activities": [
+						{
+							"name": "Copy data1",
+							"type": "Copy",
+							"dependsOn": [],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"source": {
+									"type": "DelimitedTextSource",
+									"storeSettings": {
+										"type": "HttpReadSettings",
+										"requestMethod": "GET"
+									},
+									"formatSettings": {
+										"type": "DelimitedTextReadSettings"
+									}
+								},
+								"sink": {
+									"type": "DelimitedTextSink",
+									"storeSettings": {
+										"type": "AzureBlobFSWriteSettings"
+									},
+									"formatSettings": {
+										"type": "DelimitedTextWriteSettings",
+										"quoteAllText": true,
+										"fileExtension": ".txt"
+									}
+								},
+								"enableStaging": false,
+								"translator": {
+									"type": "TabularTranslator",
+									"typeConversion": true,
+									"typeConversionSettings": {
+										"allowDataTruncation": true,
+										"treatBooleanAsNumber": false
+									}
+								}
+							},
+							"inputs": [
+								{
+									"referenceName": "ds_github_csv",
+									"type": "DatasetReference",
+									"parameters": {
+										"folderPath": "@concat('dataset/data/', item())",
+										"fileName": "'*.csv'"
+									}
+								}
+							],
+							"outputs": [
+								{
+									"referenceName": "ds_adls_csv",
+									"type": "DatasetReference",
+									"parameters": {
+										"env": "@pipeline().parameters.env",
+										"folderPath": "@item()",
+										"fileName": "@item().name"
+									}
+								}
+							]
 						}
-					},
-					"fieldList": [],
-					"storeSettings": {
-						"type": "HttpReadSettings",
-						"requestMethod": "GET"
-					},
-					"formatSettings": {
-						"type": "DelimitedTextReadSettings"
-					}
+					]
 				}
 			}
 		],
+		"parameters": {
+			"env": {
+				"type": "string",
+				"defaultValue": "dev"
+			},
+			"folders": {
+				"type": "array",
+				"defaultValue": [
+					"caract_v1",
+					"vehicule_v1",
+					"lieu_v1",
+					"usager_v1"
+				]
+			}
+		},
 		"annotations": []
 	}
 }
