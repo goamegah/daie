@@ -16,13 +16,16 @@
 				"userProperties": [],
 				"typeProperties": {
 					"dataset": {
-						"referenceName": "ds_adls_csv",
-						"type": "DatasetReference"
+						"referenceName": "ds_github_csv",
+						"type": "DatasetReference",
+						"parameters": {
+							"folderPath": "dataset/data"
+						}
 					},
 					"fieldList": [],
 					"storeSettings": {
-						"type": "AzureBlobFSReadSettings",
-						"enablePartitionDiscovery": false
+						"type": "HttpReadSettings",
+						"requestMethod": "GET"
 					},
 					"formatSettings": {
 						"type": "DelimitedTextReadSettings"
