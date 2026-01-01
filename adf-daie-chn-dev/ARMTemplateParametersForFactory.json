@@ -1,0 +1,24 @@
+{
+	"$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+	"contentVersion": "1.0.0.0",
+	"parameters": {
+		"factoryName": {
+			"value": "adf-daie-chn-dev"
+		},
+		"ls_github_HttpServer_properties_typeProperties_url": {
+			"value": "https://raw.githubusercontent.com/goamegah/daie/"
+		},
+		"ls_key_vault_properties_typeProperties_baseUrl": {
+			"value": "https://kv-daie-chn-dev-2025.vault.azure.net/"
+		},
+		"LS_ADLS_DataLake_properties_typeProperties_url": {
+			"value": "https://stadaiechndev.dfs.core.windows.net/"
+		},
+		"LS_ADLS_DataLake_properties_typeProperties_tenant": {
+			"value": "20225d8c-26c2-42d8-becc-f275b34b7356"
+		},
+		"LS_ADLS_DataLake_properties_typeProperties_servicePrincipalId": {
+			"value": "95a69785-5397-4c66-91c2-1541f7a1eda8"
+		}
+	}
+}
