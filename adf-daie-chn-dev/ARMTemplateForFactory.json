@@ -318,49 +318,6 @@
 			]
 		},
 		{
-			"name": "[concat(parameters('factoryName'), '/ds_github_csv')]",
-			"type": "Microsoft.DataFactory/factories/datasets",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"linkedServiceName": {
-					"referenceName": "ls_github_HttpServer",
-					"type": "LinkedServiceReference"
-				},
-				"parameters": {
-					"folderPath": {
-						"type": "string",
-						"defaultValue": "dataset/data/caract_v1"
-					},
-					"fileName": {
-						"type": "string",
-						"defaultValue": "caract.csv"
-					}
-				},
-				"folder": {
-					"name": "github/opendata"
-				},
-				"annotations": [],
-				"type": "DelimitedText",
-				"typeProperties": {
-					"location": {
-						"type": "HttpServerLocation",
-						"relativeUrl": {
-							"value": "@{dataset().folderPath}/@{dataset().fileName}",
-							"type": "Expression"
-						}
-					},
-					"columnDelimiter": ",",
-					"escapeChar": "\\",
-					"firstRowAsHeader": true,
-					"quoteChar": "\""
-				},
-				"schema": []
-			},
-			"dependsOn": [
-				"[concat(variables('factoryId'), '/linkedServices/ls_github_HttpServer')]"
-			]
-		},
-		{
 			"name": "[concat(parameters('factoryName'), '/LS_ADLS_DataLake')]",
 			"type": "Microsoft.DataFactory/factories/linkedServices",
 			"apiVersion": "2018-06-01",
