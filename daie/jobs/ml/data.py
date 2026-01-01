@@ -1,57 +1,74 @@
+from __future__ import annotations
+
+from typing import List, Optional
+
 import pandas as pd
+from pyspark.sql import DataFrame
+from pyspark.sql import functions as F
 
-def load_data(caract_path: str, usagers_path: str) -> pd.DataFrame:
-    # Load CSVs
-    caract = pd.read_csv(
-        caract_path,
-        sep=";",
-        encoding="latin1",
-        low_memory=False
-    )
-    usagers = pd.read_csv(
-        usagers_path,
-        sep=";",
-        encoding="latin1",
-        low_memory=False
-    )
 
-    # Normalize column names
-    caract.columns = caract.columns.str.strip().str.lower()
-    usagers.columns = usagers.columns.str.strip().str.lower()
+DEFAULT_FEATURE_COLS: List[str] = [
+    "lum",
+    "atm",
+    "col",
+    "jour",
+    "mois",
+    "vma",
+    "circ",
+    "nbv",
+    "surf",
+    "infra",
+    "situ",
+]
 
-    # Keep useful columns
-    caract = caract[ feature := [
-        "num_acc",
-        "lum",
-        "atm",
-        "col",
-        "int",
-        "hrmn",
-    ]]
 
-    usagers = usagers[[
-        "num_acc",
-        "grav",
-    ]]
+def build_accident_level_df(
+    sdf: DataFrame,
+    feature_cols: Optional[List[str]] = None,
+    id_col: str = "Num_Acc",
+    target_col: str = "grav",
+) -> DataFrame:
+    """
+    Transform the joined table (accident_v1) into one row per accident:
+      - Create hrmn_minutes from hrmn timestamp
+      - Aggregate features with first(non-null)
+      - Aggregate target with max(grav)
+    """
+    if feature_cols is None:
+        feature_cols = DEFAULT_FEATURE_COLS
 
-    # Convert hrmn "HH:MM" -> minutes
-    caract["hrmn"] = (
-        caract["hrmn"]
-        .astype(str)
-        .str.split(":")
-        .apply(lambda x: int(x[0]) * 60 + int(x[1]) if len(x) == 2 else None)
-    )
+    # hrmn timestamp -> minutes in day
+    sdf2 = sdf.withColumn("hrmn_minutes", F.hour("hrmn") * 60 + F.minute("hrmn"))
 
-    # Aggregate grav per accident
-    grav_per_acc = (
-        usagers
-        .groupby("num_acc", as_index=False)
-        .agg({"grav": "max"})
-    )
+    final_features = feature_cols + ["hrmn_minutes"]
 
-    # Join
-    df = caract.merge(grav_per_acc, on="num_acc", how="inner")
+    # Ensure columns exist
+    missing = [c for c in final_features + [id_col, target_col] if c not in sdf2.columns]
+    if missing:
+        raise ValueError(f"Missing columns in source table: {missing}")
 
-    df = df.dropna()
+    agg_exprs = [F.first(c, ignorenulls=True).alias(c) for c in final_features] + [
+        F.max(target_col).alias(target_col)
+    ]
 
-    return df
+    df_acc = sdf2.groupBy(id_col).agg(*agg_exprs).dropna()
+    return df_acc
+
+
+def load_data_from_table(
+    spark,
+    table_name: str,
+    feature_cols: Optional[List[str]] = None,
+    id_col: str = "Num_Acc",
+    target_col: str = "grav",
+) -> pd.DataFrame:
+    """
+    Load Databricks table into a pandas DataFrame at accident level (1 row per accident).
+    """
+    sdf = spark.table(table_name)
+    df_acc = build_accident_level_df(sdf, feature_cols=feature_cols, id_col=id_col, target_col=target_col)
+
+    pdf = df_acc.toPandas()
+    # normalize col names to lower-case for sklearn
+    pdf.columns = [c.lower() for c in pdf.columns]
+    return pdf.dropna()

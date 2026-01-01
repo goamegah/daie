@@ -1,73 +1,78 @@
-# daie/jobs/ml/feature.py
 from __future__ import annotations
+
+from dataclasses import dataclass
 from typing import List, Tuple
+
 import pandas as pd
-
 from sklearn.model_selection import train_test_split
-from sklearn.compose import ColumnTransformer
-from sklearn.preprocessing import OneHotEncoder, StandardScaler
-from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import StandardScaler
 
 
-def _to_minutes(x) -> float:
-    """Convert 'HH:MM' to minutes. Return None if not parsable."""
-    if pd.isna(x):
-        return None
-    s = str(x)
-    if ":" in s:
-        hh, mm = s.split(":")[:2]
-        try:
-            return int(hh) * 60 + int(mm)
-        except ValueError:
-            return None
-    return None
+@dataclass
+class FeatureOutput:
+    X_train: "pd.DataFrame | object"
+    X_test: "pd.DataFrame | object"
+    y_train: pd.Series
+    y_test: pd.Series
+    scaler: StandardScaler
+    feature_cols: List[str]
 
 
 def make_features(
     df: pd.DataFrame,
-    target_col: str = "grav",
     id_col: str = "num_acc",
-    numeric_cols: List[str] | None = None,
-    categorical_cols: List[str] | None = None,
-) -> Tuple:
+    target_col: str = "grav",
+    positive_threshold: int = 3,
+    test_size: float = 0.2,
+    random_state: int = 42,
+) -> FeatureOutput:
     """
-    Returns X_train, X_test, y_train, y_test, preprocess_pipeline
+    Reproduce your local logic:
+      - binary target: 1 if grav >= 3 else 0
+      - X = all columns except id, grav, target
+      - train/test split (stratify)
+      - StandardScaler
+      - numeric cleaning: coerce non-numeric to NaN then drop
     """
     df = df.copy()
-    df.columns = df.columns.str.strip().str.lower()
 
-    if target_col.lower() not in df.columns:
-        raise ValueError(f"Target column '{target_col}' not found. Available columns: {list(df.columns)[:50]}")
+    if target_col not in df.columns:
+        raise ValueError(f"target_col '{target_col}' not found in df columns")
 
-    if "hrmn" in df.columns:
-        df["hrmn_minutes"] = df["hrmn"].apply(_to_minutes)
+    # binary target
+    df["target"] = df[target_col].apply(lambda x: 1 if x >= positive_threshold else 0)
 
-    # Create binary target  
-    df["target"] = df[target_col.lower()].apply(lambda x: 1 if x >= 3 else 0)
-
-    drop_cols = ["target", target_col.lower()]
-    if id_col and id_col.lower() in df.columns:
-        drop_cols.append(id_col.lower())
-    if "hrmn" in df.columns:
-        drop_cols.append("hrmn")
-
-    X = df.drop(columns=[c for c in drop_cols if c in df.columns])
+    drop_cols = [c for c in [id_col, target_col, "target"] if c in df.columns]
+    X = df.drop(columns=drop_cols)
     y = df["target"]
 
-    if numeric_cols is None or categorical_cols is None:
-        numeric_cols = [c for c in X.columns if pd.api.types.is_numeric_dtype(X[c])]
-        categorical_cols = [c for c in X.columns if not pd.api.types.is_numeric_dtype(X[c])]
+    # Clean: enforce numeric
+    for c in X.columns:
+        X[c] = pd.to_numeric(X[c], errors="coerce")
 
-    preprocess = ColumnTransformer(
-        transformers=[
-            ("num", StandardScaler(), numeric_cols),
-            ("cat", OneHotEncoder(handle_unknown="ignore"), categorical_cols),
-        ],
-        remainder="drop",
-    )
+    valid_idx = X.dropna().index
+    X = X.loc[valid_idx]
+    y = y.loc[valid_idx]
+
+    feature_cols = list(X.columns)
 
     X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=0.2, random_state=42, stratify=y
+        X,
+        y,
+        test_size=test_size,
+        random_state=random_state,
+        stratify=y,
     )
 
-    return X_train, X_test, y_train, y_test, preprocess
+    scaler = StandardScaler()
+    X_train_scaled = scaler.fit_transform(X_train)
+    X_test_scaled = scaler.transform(X_test)
+
+    return FeatureOutput(
+        X_train=X_train_scaled,
+        X_test=X_test_scaled,
+        y_train=y_train,
+        y_test=y_test,
+        scaler=scaler,
+        feature_cols=feature_cols,
+    )
