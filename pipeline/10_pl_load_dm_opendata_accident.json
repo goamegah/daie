@@ -1,5 +1,5 @@
 {
-	"name": "pipeline1",
+	"name": "10_pl_load_dm_opendata_accident",
 	"properties": {
 		"activities": [
 			{
