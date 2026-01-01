@@ -1,78 +1,48 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import List, Tuple
+from pyspark.sql import functions as F
 
-import pandas as pd
-from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import StandardScaler
+from daie.jobs.ml.data import load_data_from_table, DEFAULT_FEATURE_COLS
 
+SOURCE_TABLE = "daie_chn_dev_gold.dev_datamart_opendata.accident_v1"
 
-@dataclass
-class FeatureOutput:
-    X_train: "pd.DataFrame | object"
-    X_test: "pd.DataFrame | object"
-    y_train: pd.Series
-    y_test: pd.Series
-    scaler: StandardScaler
-    feature_cols: List[str]
+OUT_SCHEMA = "daie_chn_dev_gold.dev_ml_accident_severity_prediction"
+TRAIN_TABLE = f"{OUT_SCHEMA}.accident_train_v1"
+TEST_TABLE  = f"{OUT_SCHEMA}.accident_test_v1"
 
-
-def make_features(
-    df: pd.DataFrame,
-    id_col: str = "num_acc",
-    target_col: str = "grav",
-    positive_threshold: int = 3,
-    test_size: float = 0.2,
-    random_state: int = 42,
-) -> FeatureOutput:
-    """
-    Reproduce your local logic:
-      - binary target: 1 if grav >= 3 else 0
-      - X = all columns except id, grav, target
-      - train/test split (stratify)
-      - StandardScaler
-      - numeric cleaning: coerce non-numeric to NaN then drop
-    """
-    df = df.copy()
-
-    if target_col not in df.columns:
-        raise ValueError(f"target_col '{target_col}' not found in df columns")
-
-    # binary target
-    df["target"] = df[target_col].apply(lambda x: 1 if x >= positive_threshold else 0)
-
-    drop_cols = [c for c in [id_col, target_col, "target"] if c in df.columns]
-    X = df.drop(columns=drop_cols)
-    y = df["target"]
-
-    # Clean: enforce numeric
-    for c in X.columns:
-        X[c] = pd.to_numeric(X[c], errors="coerce")
-
-    valid_idx = X.dropna().index
-    X = X.loc[valid_idx]
-    y = y.loc[valid_idx]
-
-    feature_cols = list(X.columns)
-
-    X_train, X_test, y_train, y_test = train_test_split(
-        X,
-        y,
-        test_size=test_size,
-        random_state=random_state,
-        stratify=y,
+def main(
+    spark,
+    source_table: str = SOURCE_TABLE,
+    train_table: str = TRAIN_TABLE,
+    test_table: str = TEST_TABLE,
+    test_ratio: float = 0.2,
+    seed: int = 42,
+):
+    df = load_data_from_table(
+        spark=spark,
+        table_name=source_table,
+        feature_cols=DEFAULT_FEATURE_COLS,
+        id_col="Num_Acc",
+        target_col="grav",
     )
 
-    scaler = StandardScaler()
-    X_train_scaled = scaler.fit_transform(X_train)
-    X_test_scaled = scaler.transform(X_test)
+    agg_exprs = [
+        F.first(c, ignorenulls=True).alias(c)
+        for c in (DEFAULT_FEATURE_COLS + ["hrmn_minutes"])
+    ] + [F.max("grav").alias("grav")]
 
-    return FeatureOutput(
-        X_train=X_train_scaled,
-        X_test=X_test_scaled,
-        y_train=y_train,
-        y_test=y_test,
-        scaler=scaler,
-        feature_cols=feature_cols,
-    )
+    df_acc = df.groupBy("Num_Acc").agg(*agg_exprs).dropna()
+
+    # Target binaire : grav >= 3 = grave
+    df_acc = df_acc.withColumn("target", F.when(F.col("grav") >= 3, 1).otherwise(0))
+
+    train_df, test_df = df_acc.randomSplit([1 - test_ratio, test_ratio], seed=seed)
+
+    train_df.write.mode("overwrite").format("delta").saveAsTable(train_table)
+    test_df.write.mode("overwrite").format("delta").saveAsTable(test_table)
+
+    print(" Saved train:", train_table, "rows:", train_df.count())
+    print(" Saved test :", test_table,  "rows:", test_df.count())
+
+if __name__ == "__main__":
+    main(spark)

@@ -2,67 +2,63 @@ from __future__ import annotations
 
 import mlflow
 import mlflow.sklearn
+
+from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import accuracy_score, f1_score
 
-from daie.jobs.ml.data import load_data_from_table, DEFAULT_FEATURE_COLS
-from daie.jobs.ml.feature import make_features
 from daie.jobs.ml.model import get_model
 
+OUT_SCHEMA = "daie_chn_dev_gold.dev_ml_accident_severity_prediction"
+TRAIN_TABLE = f"{OUT_SCHEMA}.accident_train_v1"
+META_TABLE  = f"{OUT_SCHEMA}.ml_metadata_v1"
 
-TABLE_NAME = "daie_chn_dev_gold.dev_datamart_opendata.accident_v1"
-
+FEATURE_COLS = ["lum","atm","col","jour","mois","vma","circ","nbv","surf","infra","situ","hrmn_minutes"]
 
 def main(
-    spark=None,
-    table_name: str = TABLE_NAME,
-    run_name: str = "accident_gravity_prediction_agg",
+    spark,
+    train_table: str = TRAIN_TABLE,
+    meta_table: str = META_TABLE,
+    run_name: str = "accident_train_v1",
+    n_estimators: int = 200,
 ):
-    if spark is None:
-        try:
-            spark  
-        except NameError:
-            raise RuntimeError(
-                "Spark session 'spark' not found. This entrypoint is meant to run on Databricks."
-            )
+    sdf = spark.table(train_table).dropna()
 
-    df = load_data_from_table(
-        spark=spark,
-        table_name=table_name,
-        feature_cols=DEFAULT_FEATURE_COLS,  
-        id_col="Num_Acc",
-        target_col="grav",
-    )
+    pdf = sdf.select(*FEATURE_COLS, "target").toPandas()
+    X = pdf[FEATURE_COLS]
+    y = pdf["target"]
 
-    fo = make_features(
-        df,
-        id_col="num_acc",
-        target_col="grav",
-        positive_threshold=3,
-    )
+    scaler = StandardScaler()
+    Xs = scaler.fit_transform(X)
 
-    model = get_model(n_estimators=200)
+    model = get_model(n_estimators=n_estimators)
 
-    with mlflow.start_run(run_name=run_name):
-        model.fit(fo.X_train, fo.y_train)
-        preds = model.predict(fo.X_test)
+    with mlflow.start_run(run_name=run_name) as run:
+        model.fit(Xs, y)
+        preds = model.predict(Xs)
 
-        acc = accuracy_score(fo.y_test, preds)
-        f1 = f1_score(fo.y_test, preds)
+        acc = accuracy_score(y, preds)
+        f1 = f1_score(y, preds)
 
         mlflow.log_param("model", "RandomForestClassifier")
-        mlflow.log_param("n_estimators", 200)
-        mlflow.log_param("features", ",".join(fo.feature_cols))
+        mlflow.log_param("n_estimators", n_estimators)
+        mlflow.log_param("features", ",".join(FEATURE_COLS))
+        mlflow.log_metric("train_accuracy", acc)
+        mlflow.log_metric("train_f1", f1)
 
-        mlflow.log_metric("accuracy", acc)
-        mlflow.log_metric("f1_score", f1)
-
-        # log model + scaler
         mlflow.sklearn.log_model(model, "model")
-        mlflow.sklearn.log_model(fo.scaler, "scaler")
+        mlflow.sklearn.log_model(scaler, "scaler")
 
-        print(f"Accuracy: {acc:.3f}")
-        print(f"F1-score: {f1:.3f}")
+        # run_id partagé via une table delta
+        meta_df = spark.createDataFrame([{
+            "model_run_id": run.info.run_id,
+            "run_name": run_name,
+        }])
+        meta_df.write.mode("overwrite").format("delta").saveAsTable(meta_table)
 
+        print(" train_accuracy:", acc, "train_f1:", f1)
+        print(" saved metadata:", meta_table, "run_id:", run.info.run_id)
+
+        return run.info.run_id
 
 if __name__ == "__main__":
-    main()
+    main(spark)
