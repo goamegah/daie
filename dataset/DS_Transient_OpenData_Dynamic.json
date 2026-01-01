@@ -1,0 +1,96 @@
+{
+	"name": "DS_Transient_OpenData_Dynamic",
+	"properties": {
+		"linkedServiceName": {
+			"referenceName": "LS_ADLS_DataLake",
+			"type": "LinkedServiceReference"
+		},
+		"parameters": {
+			"env": {
+				"type": "string",
+				"defaultValue": "dev"
+			}
+		},
+		"folder": {
+			"name": "transient/opendata"
+		},
+		"annotations": [],
+		"type": "DelimitedText",
+		"typeProperties": {
+			"location": {
+				"type": "AzureBlobFSLocation",
+				"folderPath": {
+					"value": "@concat('source/', dataset().env)",
+					"type": "Expression"
+				},
+				"fileSystem": "transient"
+			},
+			"columnDelimiter": ";",
+			"escapeChar": "\"",
+			"firstRowAsHeader": true,
+			"quoteChar": "\""
+		},
+		"schema": [
+			{
+				"name": "Num_Acc",
+				"type": "String"
+			},
+			{
+				"name": "jour",
+				"type": "String"
+			},
+			{
+				"name": "mois",
+				"type": "String"
+			},
+			{
+				"name": "an",
+				"type": "String"
+			},
+			{
+				"name": "hrmn",
+				"type": "String"
+			},
+			{
+				"name": "lum",
+				"type": "String"
+			},
+			{
+				"name": "dep",
+				"type": "String"
+			},
+			{
+				"name": "com",
+				"type": "String"
+			},
+			{
+				"name": "agg",
+				"type": "String"
+			},
+			{
+				"name": "int",
+				"type": "String"
+			},
+			{
+				"name": "atm",
+				"type": "String"
+			},
+			{
+				"name": "col",
+				"type": "String"
+			},
+			{
+				"name": "adr",
+				"type": "String"
+			},
+			{
+				"name": "lat",
+				"type": "String"
+			},
+			{
+				"name": "long",
+				"type": "String"
+			}
+		]
+	}
+}

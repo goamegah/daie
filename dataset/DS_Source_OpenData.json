@@ -1,20 +1,9 @@
 {
-	"name": "ds_adls_csv",
+	"name": "DS_Source_OpenData",
 	"properties": {
 		"linkedServiceName": {
-			"referenceName": "ls_adls_transient",
+			"referenceName": "LS_ADLS_DataLake",
 			"type": "LinkedServiceReference"
-		},
-		"parameters": {
-			"env": {
-				"type": "string"
-			},
-			"folderPath": {
-				"type": "string"
-			},
-			"fileName": {
-				"type": "string"
-			}
 		},
 		"folder": {
 			"name": "transient/opendata"
@@ -24,17 +13,14 @@
 		"typeProperties": {
 			"location": {
 				"type": "AzureBlobFSLocation",
-				"fileName": {
-					"value": "@{dataset().fileName}",
+				"folderPath": {
+					"value": "opendata",
 					"type": "Expression"
 				},
-				"folderPath": {
-					"value": "transient/source/@{dataset().env}/opendata/@{dataset().folderPath}",
-					"type": "Expression"
-				}
+				"fileSystem": "source"
 			},
-			"columnDelimiter": ",",
-			"escapeChar": "\\",
+			"columnDelimiter": ";",
+			"escapeChar": "\"",
 			"firstRowAsHeader": true,
 			"quoteChar": "\""
 		},
