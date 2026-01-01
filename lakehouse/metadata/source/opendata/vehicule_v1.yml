@@ -1,0 +1,78 @@
+source: opendata
+entity: vehicule_v1
+transient_dir: "{{base_dir}}/transient/source/{{env}}/opendata/vehicule_v1"
+format: "csv"
+options:
+  header: true
+  inferSchema: true
+  sep: ";"
+  multiLine: true
+  encoding: "UTF-8"
+
+schema:
+  columns:
+    - name: "Num_Acc"
+      data_type: "bigint"
+      nullable: false
+      metadata:
+        comment: "Numéro d'identification de l'accident"
+
+    - name: "id_vehicule"
+      data_type: "string"
+      nullable: true
+      metadata:
+        comment: "Identifiant du véhicule"
+
+    - name: "num_veh"
+      data_type: "string"
+      nullable: true
+      metadata:
+        comment: "Numéro du véhicule"
+
+    - name: "senc"
+      data_type: "double"
+      nullable: true
+      metadata:
+        comment: "Sens de circulation"
+
+    - name: "catv"
+      data_type: "double"
+      nullable: true
+      metadata:
+        comment: "Catégorie de véhicule"
+
+    - name: "obs"
+      data_type: "double"
+      nullable: true
+      metadata:
+        comment: "Observation du véhicule"
+
+    - name: "obsm"
+      data_type: "double"
+      nullable: true
+      metadata:
+        comment: "Observation météorologique du véhicule"
+
+    - name: "choc"
+      data_type: "double"
+      nullable: true
+      metadata:
+        comment: "Type de choc"
+
+    - name: "manv"
+      data_type: "double"
+      nullable: true
+      metadata:
+        comment: "Manœuvre du véhicule"
+
+    - name: "motor"
+      data_type: "double"
+      nullable: true
+      metadata:
+        comment: "Type de motorisation"
+
+    - name: "occutc"
+      data_type: "int"
+      nullable: true
+      metadata:
+        comment: "Nombre d'occupants dans le véhicule"

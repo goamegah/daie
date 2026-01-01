@@ -61,6 +61,11 @@ def get_source_metadata(env, source, entity):
     artifact_path = f"{base_path}/source/{source}/{entity}.yml"
     return read_artifacts_file(env, artifact_path)
 
+def get_datamart_metadata(env, datamart, entity):
+    base_path = get_artifact_base_path(env)
+    artifact_path = f"{base_path}/datamart/{datamart}/{entity}.yml"
+    return read_artifacts_file(env, artifact_path)
+
 def build_schema_name(
     env: str,
     stage: str,
@@ -89,4 +94,63 @@ def get_or_create_volume_location_from_metadata(
         sub_folder=sub_folder
     )
 
+def get_raw_table_identifier_from_metadata(
+    env: str,
+    metadata: dict
+):
+    catalog = resolve_catalog(layer="bronze")
+    source = metadata["source"]
+    entity = metadata["entity"]
+    return get_table_identifier(
+        env=env,
+        catalog=catalog,
+        stage="raw",
+        base_name=source,
+        entity=entity
+    )
+
+def get_curated_table_identifier_from_metadata(
+    env: str,
+    metadata: dict
+):
+    catalog = resolve_catalog(layer="silver")
+    source = metadata["source"]
+    entity = metadata["entity"]
+    return get_table_identifier(
+        env=env,
+        catalog=catalog,
+        stage="curated",
+        base_name=source,
+        entity=entity
+    )
+
+def get_datamart_table_identifier_from_metadata(
+    env: str,
+    metadata: dict
+):
+    catalog = resolve_catalog(layer="gold")
+    datamart = metadata["datamart"]
+    entity = metadata["entity"]
+    return get_table_identifier(
+        env=env,
+        catalog=catalog,
+        stage="datamart",
+        base_name=datamart,
+        entity=entity
+    )
+
+def get_table_identifier(
+    env,
+    catalog: str,
+    stage: str,
+    base_name: str,
+    entity: str
+):
+    schema = build_schema_name(
+        env=env,
+        stage=stage,
+        base_name=base_name
+    )
+    table_identifier = f"{catalog}.{schema}.{entity}"
+    return table_identifier
     

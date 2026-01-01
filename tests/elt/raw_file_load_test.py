@@ -1,7 +1,7 @@
 # tests/elt/raw_file_load_test.py
 from unittest.mock import patch, MagicMock, call
 import pytest
-from daie.jobs.elt import raw_file_load
+from daie.jobs.elt.src import raw_file_load
 
 
 def test_move_files_with_single_file():
@@ -15,7 +15,7 @@ def test_move_files_with_single_file():
     mock_dbutils.fs.ls.return_value = [mock_file]
     
     # When: calling move_files with mocked dbutils
-    with patch('daie.jobs.elt.raw_file_load.su.get_dbutils', return_value=mock_dbutils):
+    with patch('daie.jobs.elt.src.raw_file_load.su.get_dbutils', return_value=mock_dbutils):
         raw_file_load.move_files(src, dst)
     
     # Then: destination directory should be created and file should be moved
@@ -44,7 +44,7 @@ def test_move_files_with_multiple_files():
     mock_dbutils.fs.ls.return_value = [mock_file1, mock_file2, mock_file3]
     
     # When: calling move_files with multiple files
-    with patch('daie.jobs.elt.raw_file_load.su.get_dbutils', return_value=mock_dbutils):
+    with patch('daie.jobs.elt.src.raw_file_load.su.get_dbutils', return_value=mock_dbutils):
         raw_file_load.move_files(src, dst)
     
     # Then: all files should be moved to destination
@@ -67,7 +67,7 @@ def test_move_files_with_empty_directory():
     mock_dbutils.fs.ls.return_value = []
     
     # When: calling move_files with empty directory
-    with patch('daie.jobs.elt.raw_file_load.su.get_dbutils', return_value=mock_dbutils):
+    with patch('daie.jobs.elt.src.raw_file_load.su.get_dbutils', return_value=mock_dbutils):
         raw_file_load.move_files(src, dst)
     
     # Then: destination directory should be created but no files moved
@@ -88,7 +88,7 @@ def test_move_files_with_nested_path():
     mock_dbutils.fs.ls.return_value = [mock_file]
     
     # When: calling move_files with nested paths
-    with patch('daie.jobs.elt.raw_file_load.su.get_dbutils', return_value=mock_dbutils):
+    with patch('daie.jobs.elt.src.raw_file_load.su.get_dbutils', return_value=mock_dbutils):
         raw_file_load.move_files(src, dst)
     
     # Then: file should be moved preserving the filename
@@ -113,9 +113,9 @@ def test_main_with_valid_parameters():
     mock_raw_base_path = "/Volumes/daie_chn_dev_bronze/dev_raw_opendata/accident_v1/raw_files"
     
     # When: calling main with mocked dependencies
-    with patch('daie.jobs.elt.raw_file_load.ec.get_source_metadata', return_value=mock_metadata) as mock_get_metadata, \
-         patch('daie.jobs.elt.raw_file_load.ec.get_or_create_volume_location_from_metadata', return_value=mock_raw_base_path) as mock_get_volume, \
-         patch('daie.jobs.elt.raw_file_load.move_files') as mock_move_files:
+    with patch('daie.jobs.elt.src.raw_file_load.ec.get_source_metadata', return_value=mock_metadata) as mock_get_metadata, \
+         patch('daie.jobs.elt.src.raw_file_load.ec.get_or_create_volume_location_from_metadata', return_value=mock_raw_base_path) as mock_get_volume, \
+         patch('daie.jobs.elt.src.raw_file_load.move_files') as mock_move_files:
         
         raw_file_load.main(env=env, source=source, entity=entity)
     
@@ -148,9 +148,9 @@ def test_main_with_additional_kwargs():
     mock_raw_base_path = "/Volumes/daie_chn_test_bronze/test_raw_external_api/users_v2/raw_files"
     
     # When: calling main with extra kwargs (should be ignored via **_)
-    with patch('daie.jobs.elt.raw_file_load.ec.get_source_metadata', return_value=mock_metadata), \
-         patch('daie.jobs.elt.raw_file_load.ec.get_or_create_volume_location_from_metadata', return_value=mock_raw_base_path), \
-         patch('daie.jobs.elt.raw_file_load.move_files') as mock_move_files:
+    with patch('daie.jobs.elt.src.raw_file_load.ec.get_source_metadata', return_value=mock_metadata), \
+         patch('daie.jobs.elt.src.raw_file_load.ec.get_or_create_volume_location_from_metadata', return_value=mock_raw_base_path), \
+         patch('daie.jobs.elt.src.raw_file_load.move_files') as mock_move_files:
         
         raw_file_load.main(env=env, source=source, entity=entity, extra_param=extra_param)
     
@@ -180,9 +180,9 @@ def test_main_integration_flow():
     mock_dbutils.fs.ls.return_value = [mock_file1, mock_file2]
     
     # When: executing the complete main flow
-    with patch('daie.jobs.elt.raw_file_load.ec.get_source_metadata', return_value=mock_metadata), \
-         patch('daie.jobs.elt.raw_file_load.ec.get_or_create_volume_location_from_metadata', return_value=mock_raw_base_path), \
-         patch('daie.jobs.elt.raw_file_load.su.get_dbutils', return_value=mock_dbutils):
+    with patch('daie.jobs.elt.src.raw_file_load.ec.get_source_metadata', return_value=mock_metadata), \
+         patch('daie.jobs.elt.src.raw_file_load.ec.get_or_create_volume_location_from_metadata', return_value=mock_raw_base_path), \
+         patch('daie.jobs.elt.src.raw_file_load.su.get_dbutils', return_value=mock_dbutils):
         
         raw_file_load.main(env=env, source=source, entity=entity)
     

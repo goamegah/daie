@@ -1,0 +1,272 @@
+datamart: opendata
+entity: accident_v1
+mapping_rules: ""
+
+inputs:
+  entities:
+    - entity: "caract_v1"
+    - entity: "lieu_v1"
+      join:
+        type: "inner"
+        keys:
+          - main_entity_key: "caract_v1.Num_Acc"
+            join_entity_key: "lieu_v1.Num_Acc"
+    - entity: "vehicule_v1"
+      join:
+        type: "inner"
+        keys:
+          - main_entity_key: "lieu_v1.Num_Acc"
+            join_entity_key: "vehicule_v1.Num_Acc"
+    - entity: "usager_v1"
+      join:
+        type: "inner"
+        keys:
+          - main_entity_key: "vehicule_v1.Num_Acc"
+            join_entity_key: "usager_v1.Num_Acc"
+          - main_entity_key: "vehicule_v1.id_vehicule"
+            join_entity_key: "usager_v1.id_vehicule"
+  filter_expression: ""
+
+schema:
+  columns:
+
+    # ======================
+    # CLÉS
+    # ======================
+    - name: "Num_Acc"
+      data_type: "bigint"
+      nullable: false
+      metadata:
+        mapping_rules: "caract_v1.Num_Acc"
+        comment: "Identifiant unique de l'accident"
+
+    - name: "id_vehicule"
+      data_type: "string"
+      nullable: false
+      metadata:
+        mapping_rules: "vehicule_v1.id_vehicule"
+        comment: "Identifiant du véhicule"
+
+    - name: "id_usager"
+      data_type: "string"
+      nullable: false
+      metadata:
+        mapping_rules: "usager_v1.id_usager"
+        comment: "Identifiant de l'usager"
+
+    # ======================
+    # ACCIDENT (CARACT)
+    # ======================
+    - name: "jour"
+      data_type: "int"
+      metadata:
+        mapping_rules: "caract_v1.jour"
+
+    - name: "mois"
+      data_type: "int"
+      metadata:
+        mapping_rules: "caract_v1.mois"
+
+    - name: "an"
+      data_type: "int"
+      metadata:
+        mapping_rules: "caract_v1.an"
+
+    - name: "hrmn"
+      data_type: "timestamp"
+      metadata:
+        mapping_rules: "caract_v1.hrmn"
+
+    - name: "lum"
+      data_type: "double"
+      metadata:
+        mapping_rules: "caract_v1.lum"
+
+    - name: "atm"
+      data_type: "double"
+      metadata:
+        mapping_rules: "caract_v1.atm"
+
+    - name: "col"
+      data_type: "double"
+      metadata:
+        mapping_rules: "caract_v1.col"
+
+    - name: "dep"
+      data_type: "string"
+      metadata:
+        mapping_rules: "caract_v1.dep"
+
+    - name: "com"
+      data_type: "string"
+      metadata:
+        mapping_rules: "caract_v1.com"
+
+    - name: "adr"
+      data_type: "string"
+      metadata:
+        mapping_rules: "caract_v1.adr"
+
+    - name: "lat"
+      data_type: "string"
+      metadata:
+        mapping_rules: "caract_v1.lat"
+
+    - name: "long"
+      data_type: "string"
+      metadata:
+        mapping_rules: "caract_v1.long"
+
+    # ======================
+    # LIEU
+    # ======================
+    - name: "catr"
+      data_type: "int"
+      metadata:
+        mapping_rules: "lieu_v1.catr"
+
+    - name: "voie"
+      data_type: "string"
+      metadata:
+        mapping_rules: "lieu_v1.voie"
+
+    - name: "v1"
+      data_type: "double"
+      metadata:
+        mapping_rules: "lieu_v1.v1"
+
+    - name: "v2"
+      data_type: "string"
+      metadata:
+        mapping_rules: "lieu_v1.v2"
+
+    - name: "circ"
+      data_type: "double"
+      metadata:
+        mapping_rules: "lieu_v1.circ"
+
+    - name: "nbv"
+      data_type: "string"
+      metadata:
+        mapping_rules: "lieu_v1.nbv"
+
+    - name: "surf"
+      data_type: "double"
+      metadata:
+        mapping_rules: "lieu_v1.surf"
+
+    - name: "infra"
+      data_type: "double"
+      metadata:
+        mapping_rules: "lieu_v1.infra"
+
+    - name: "situ"
+      data_type: "double"
+      metadata:
+        mapping_rules: "lieu_v1.situ"
+
+    - name: "vma"
+      data_type: "double"
+      metadata:
+        mapping_rules: "lieu_v1.vma"
+
+    # ======================
+    # VÉHICULE
+    # ======================
+    - name: "num_veh"
+      data_type: "string"
+      metadata:
+        mapping_rules: "vehicule_v1.num_veh"
+
+    - name: "senc"
+      data_type: "double"
+      metadata:
+        mapping_rules: "vehicule_v1.senc"
+
+    - name: "catv"
+      data_type: "double"
+      metadata:
+        mapping_rules: "vehicule_v1.catv"
+
+    - name: "motor"
+      data_type: "double"
+      metadata:
+        mapping_rules: "vehicule_v1.motor"
+
+    - name: "choc"
+      data_type: "double"
+      metadata:
+        mapping_rules: "vehicule_v1.choc"
+
+    - name: "manv"
+      data_type: "double"
+      metadata:
+        mapping_rules: "vehicule_v1.manv"
+
+    - name: "occutc"
+      data_type: "int"
+      metadata:
+        mapping_rules: "vehicule_v1.occutc"
+
+    # ======================
+    # USAGER
+    # ======================
+    - name: "place"
+      data_type: "double"
+      metadata:
+        mapping_rules: "usager_v1.place"
+
+    - name: "catu"
+      data_type: "int"
+      metadata:
+        mapping_rules: "usager_v1.catu"
+
+    - name: "grav"
+      data_type: "double"
+      metadata:
+        mapping_rules: "usager_v1.grav"
+
+    - name: "sexe"
+      data_type: "double"
+      metadata:
+        mapping_rules: "usager_v1.sexe"
+
+    - name: "an_nais"
+      data_type: "int"
+      metadata:
+        mapping_rules: "usager_v1.an_nais"
+
+    - name: "trajet"
+      data_type: "double"
+      metadata:
+        mapping_rules: "usager_v1.trajet"
+
+    - name: "secu1"
+      data_type: "double"
+      metadata:
+        mapping_rules: "usager_v1.secu1"
+
+    - name: "secu2"
+      data_type: "double"
+      metadata:
+        mapping_rules: "usager_v1.secu2"
+
+    - name: "secu3"
+      data_type: "double"
+      metadata:
+        mapping_rules: "usager_v1.secu3"
+
+    - name: "locp"
+      data_type: "double"
+      metadata:
+        mapping_rules: "usager_v1.locp"
+
+    - name: "actp"
+      data_type: "string"
+      metadata:
+        mapping_rules: "usager_v1.actp"
+
+    - name: "etatp"
+      data_type: "double"
+      metadata:
+        mapping_rules: "usager_v1.etatp"

@@ -1,0 +1,108 @@
+source: opendata
+entity: usager_v1
+transient_dir: "{{base_dir}}/transient/source/{{env}}/opendata/usager_v1"
+format: "csv"
+options:
+  header: true
+  inferSchema: true
+  sep: ";"
+  multiLine: true
+  encoding: "UTF-8"
+
+schema:
+  columns:
+    - name: "Num_Acc"
+      data_type: "bigint"
+      nullable: false
+      metadata:
+        comment: "Numéro d'identification de l'accident"
+
+    - name: "id_usager"
+      data_type: "string"
+      nullable: true
+      metadata:
+        comment: "Identifiant de l'usager"
+
+    - name: "id_vehicule"
+      data_type: "string"
+      nullable: true
+      metadata:
+        comment: "Identifiant du véhicule"
+
+    - name: "num_veh"
+      data_type: "string"
+      nullable: true
+      metadata:
+        comment: "Numéro du véhicule"
+
+    - name: "place"
+      data_type: "double"
+      nullable: true
+      metadata:
+        comment: "Place de l'usager dans le véhicule"
+
+    - name: "catu"
+      data_type: "int"
+      nullable: true
+      metadata:
+        comment: "Catégorie de l'usager"
+
+    - name: "grav"
+      data_type: "double"
+      nullable: true
+      metadata:
+        comment: "Gravité des blessures"
+
+    - name: "sexe"
+      data_type: "double"
+      nullable: true
+      metadata:
+        comment: "Sexe de l'usager"
+
+    - name: "an_nais"
+      data_type: "int"
+      nullable: true
+      metadata:
+        comment: "Année de naissance de l'usager"
+
+    - name: "trajet"
+      data_type: "double"
+      nullable: true
+      metadata:
+        comment: "Type de trajet effectué"
+
+    - name: "secu1"
+      data_type: "double"
+      nullable: true
+      metadata:
+        comment: "Dispositif de sécurité utilisé 1"
+
+    - name: "secu2"
+      data_type: "double"
+      nullable: true
+      metadata:
+        comment: "Dispositif de sécurité utilisé 2"
+
+    - name: "secu3"
+      data_type: "double"
+      nullable: true
+      metadata:
+        comment: "Dispositif de sécurité utilisé 3"
+
+    - name: "locp"
+      data_type: "double"
+      nullable: true
+      metadata:
+        comment: "Localisation de l'usager dans le véhicule"
+
+    - name: "actp"
+      data_type: "string"
+      nullable: true
+      metadata:
+        comment: "Action de l'usager"
+
+    - name: "etatp"
+      data_type: "double"
+      nullable: true
+      metadata:
+        comment: "État de l'usager"

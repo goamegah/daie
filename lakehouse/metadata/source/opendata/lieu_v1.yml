@@ -1,0 +1,78 @@
+source: opendata
+entity: lieu_v1
+transient_dir: "{{base_dir}}/transient/source/{{env}}/opendata/lieu_v1"
+format: "csv"
+options:
+  header: true
+  inferSchema: true
+  sep: ";"
+  multiLine: true
+  encoding: "UTF-8"
+
+schema:
+  columns:
+    - name: "Num_Acc"
+      data_type: "bigint"
+      nullable: false
+      metadata:
+        comment: "Numéro d'identification de l'accident"
+
+    - name: "catr"
+      data_type: "int"
+      nullable: true
+      metadata:
+        comment: "Catégorie de route"
+
+    - name: "voie"
+      data_type: "string"
+      nullable: true
+      metadata:
+        comment: "Type de voie"
+
+    - name: "v1"
+      data_type: "double"
+      nullable: true
+      metadata:
+        comment: "Vitesse limite autorisée (1ère valeur)"
+
+    - name: "v2"
+      data_type: "string"
+      nullable: true
+      metadata:
+        comment: "Vitesse limite autorisée (2ème valeur)"
+
+    - name: "circ"
+      data_type: "double"
+      nullable: true
+      metadata:
+        comment: "Type de circulation"
+
+    - name: "nbv"
+      data_type: "string"
+      nullable: true
+      metadata:
+        comment: "Nombre de voies"
+
+    - name: "surf"
+      data_type: "double"
+      nullable: true
+      metadata:
+        comment: "Type de surface"
+
+    - name: "infra"
+      data_type: "double"
+      nullable: true
+      metadata:
+        comment: "Type d'infrastructure"
+
+    - name: "situ"
+      data_type: "double"
+      nullable: true
+      metadata:
+        comment: "Situation de l'accident"
+
+    - name: "vma"
+      data_type: "double"
+      nullable: true
+      metadata:
+        comment: "Vitesse maximale autorisée"
