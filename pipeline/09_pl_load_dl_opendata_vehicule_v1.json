@@ -1,0 +1,44 @@
+{
+	"name": "09_pl_load_dl_opendata_vehicule_v1",
+	"properties": {
+		"activities": [
+			{
+				"name": "09_pl_load_dl_opendata_vehicule_v1",
+				"type": "DatabricksJob",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"jobId": "611494910733577",
+					"jobParameters": {
+						"env": {
+							"value": "@pipeline().parameters.env",
+							"type": "Expression"
+						},
+						"source": "opendata",
+						"entity": "caract_v1"
+					}
+				},
+				"linkedServiceName": {
+					"referenceName": "LS_Databricks_Workspace",
+					"type": "LinkedServiceReference"
+				}
+			}
+		],
+		"parameters": {
+			"env": {
+				"type": "string"
+			}
+		},
+		"folder": {
+			"name": "09_datalake_load/source/opendata"
+		},
+		"annotations": []
+	}
+}
