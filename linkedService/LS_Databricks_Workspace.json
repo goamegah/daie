@@ -1,0 +1,13 @@
+{
+	"name": "LS_Databricks_Workspace",
+	"properties": {
+		"annotations": [],
+		"type": "AzureDatabricks",
+		"typeProperties": {
+			"domain": "https://adb-7405605461580963.3.azuredatabricks.net",
+			"authentication": "MSI",
+			"workspaceResourceId": "/subscriptions/455fde4d-a77d-4a42-bbff-d13341a34203/resourceGroups/rg-daie-chn-dev/providers/Microsoft.Databricks/workspaces/dbw-daie-chn-dev",
+			"existingClusterId": "1222-133816-z75fnycy"
+		}
+	}
+}
