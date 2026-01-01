@@ -7,14 +7,6 @@
 			"metadata": "Data Factory name",
 			"defaultValue": "adf-daie-chn-dev"
 		},
-		"ls_github_HttpServer_properties_typeProperties_url": {
-			"type": "string",
-			"defaultValue": "https://raw.githubusercontent.com/goamegah/daie/"
-		},
-		"ls_key_vault_properties_typeProperties_baseUrl": {
-			"type": "string",
-			"defaultValue": "https://kv-daie-chn-dev-2025.vault.azure.net/"
-		},
 		"LS_ADLS_DataLake_properties_typeProperties_url": {
 			"type": "string",
 			"defaultValue": "https://stadaiechndev.dfs.core.windows.net/"
@@ -26,74 +18,24 @@
 		"LS_ADLS_DataLake_properties_typeProperties_servicePrincipalId": {
 			"type": "string",
 			"defaultValue": "95a69785-5397-4c66-91c2-1541f7a1eda8"
+		},
+		"LS_Databricks_Workspace_properties_typeProperties_existingClusterId": {
+			"type": "string",
+			"defaultValue": "1222-133816-z75fnycy"
+		},
+		"ls_github_HttpServer_properties_typeProperties_url": {
+			"type": "string",
+			"defaultValue": "https://raw.githubusercontent.com/goamegah/daie/"
+		},
+		"ls_key_vault_properties_typeProperties_baseUrl": {
+			"type": "string",
+			"defaultValue": "https://kv-daie-chn-dev-2025.vault.azure.net/"
 		}
 	},
 	"variables": {
 		"factoryId": "[concat('Microsoft.DataFactory/factories/', parameters('factoryName'))]"
 	},
 	"resources": [
-		{
-			"name": "[concat(parameters('factoryName'), '/DS_Source_OpenData')]",
-			"type": "Microsoft.DataFactory/factories/datasets",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"linkedServiceName": {
-					"referenceName": "LS_ADLS_DataLake",
-					"type": "LinkedServiceReference"
-				},
-				"folder": {
-					"name": "transient/opendata"
-				},
-				"annotations": [],
-				"type": "DelimitedText",
-				"typeProperties": {
-					"location": {
-						"type": "AzureBlobFSLocation",
-						"folderPath": {
-							"value": "opendata",
-							"type": "Expression"
-						},
-						"fileSystem": "source"
-					},
-					"columnDelimiter": ";",
-					"escapeChar": "\"",
-					"firstRowAsHeader": true,
-					"quoteChar": "\""
-				},
-				"schema": []
-			},
-			"dependsOn": [
-				"[concat(variables('factoryId'), '/linkedServices/LS_ADLS_DataLake')]"
-			]
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/ls_github_HttpServer')]",
-			"type": "Microsoft.DataFactory/factories/linkedServices",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"annotations": [],
-				"type": "HttpServer",
-				"typeProperties": {
-					"url": "[parameters('ls_github_HttpServer_properties_typeProperties_url')]",
-					"enableServerCertificateValidation": true,
-					"authenticationType": "Anonymous"
-				}
-			},
-			"dependsOn": []
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/ls_key_vault')]",
-			"type": "Microsoft.DataFactory/factories/linkedServices",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"annotations": [],
-				"type": "AzureKeyVault",
-				"typeProperties": {
-					"baseUrl": "[parameters('ls_key_vault_properties_typeProperties_baseUrl')]"
-				}
-			},
-			"dependsOn": []
-		},
 		{
 			"name": "[concat(parameters('factoryName'), '/02_pl_copy_source_to_Transient')]",
 			"type": "Microsoft.DataFactory/factories/pipelines",
@@ -179,7 +121,7 @@
 					}
 				},
 				"folder": {
-					"name": "02_source_to_transient/opendata"
+					"name": "02_source_to_transient/source/opendata"
 				},
 				"annotations": []
 			},
@@ -189,43 +131,89 @@
 			]
 		},
 		{
-			"name": "[concat(parameters('factoryName'), '/ds_github_csv')]",
+			"name": "[concat(parameters('factoryName'), '/09_pl_load_dl_opendata_caract_v1')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "09_pl_load_dl_opendata_caract_v1",
+						"type": "DatabricksJob",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"jobId": "611494910733577",
+							"jobParameters": {
+								"env": {
+									"value": "@pipeline().parameters.env",
+									"type": "Expression"
+								},
+								"source": "opendata",
+								"entity": "caract_v1"
+							}
+						},
+						"linkedServiceName": {
+							"referenceName": "LS_Databricks_Workspace",
+							"type": "LinkedServiceReference"
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"parameters": {
+					"env": {
+						"type": "string"
+					}
+				},
+				"folder": {
+					"name": "09_datalake_load/source/opendata"
+				},
+				"annotations": []
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/LS_Databricks_Workspace')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/DS_Source_OpenData')]",
 			"type": "Microsoft.DataFactory/factories/datasets",
 			"apiVersion": "2018-06-01",
 			"properties": {
 				"linkedServiceName": {
-					"referenceName": "ls_github_HttpServer",
+					"referenceName": "LS_ADLS_DataLake",
 					"type": "LinkedServiceReference"
 				},
-				"parameters": {
-					"folderPath": {
-						"type": "string",
-						"defaultValue": "dataset/data/caract_v1"
-					},
-					"fileName": {
-						"type": "string",
-						"defaultValue": "caract.csv"
-					}
-				},
 				"folder": {
-					"name": "github/opendata"
+					"name": "transient/opendata"
 				},
 				"annotations": [],
 				"type": "DelimitedText",
 				"typeProperties": {
 					"location": {
-						"type": "HttpServerLocation",
-						"relativeUrl": "@{dataset().folderPath}/@{dataset().fileName}"
+						"type": "AzureBlobFSLocation",
+						"folderPath": {
+							"value": "opendata",
+							"type": "Expression"
+						},
+						"fileSystem": "source"
 					},
-					"columnDelimiter": ",",
-					"escapeChar": "\\",
+					"columnDelimiter": ";",
+					"escapeChar": "\"",
 					"firstRowAsHeader": true,
 					"quoteChar": "\""
 				},
 				"schema": []
 			},
 			"dependsOn": [
-				"[concat(variables('factoryId'), '/linkedServices/ls_github_HttpServer')]"
+				"[concat(variables('factoryId'), '/linkedServices/LS_ADLS_DataLake')]"
 			]
 		},
 		{
@@ -330,6 +318,49 @@
 			]
 		},
 		{
+			"name": "[concat(parameters('factoryName'), '/ds_github_csv')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "ls_github_HttpServer",
+					"type": "LinkedServiceReference"
+				},
+				"parameters": {
+					"folderPath": {
+						"type": "string",
+						"defaultValue": "dataset/data/caract_v1"
+					},
+					"fileName": {
+						"type": "string",
+						"defaultValue": "caract.csv"
+					}
+				},
+				"folder": {
+					"name": "github/opendata"
+				},
+				"annotations": [],
+				"type": "DelimitedText",
+				"typeProperties": {
+					"location": {
+						"type": "HttpServerLocation",
+						"relativeUrl": {
+							"value": "@{dataset().folderPath}/@{dataset().fileName}",
+							"type": "Expression"
+						}
+					},
+					"columnDelimiter": ",",
+					"escapeChar": "\\",
+					"firstRowAsHeader": true,
+					"quoteChar": "\""
+				},
+				"schema": []
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/ls_github_HttpServer')]"
+			]
+		},
+		{
 			"name": "[concat(parameters('factoryName'), '/LS_ADLS_DataLake')]",
 			"type": "Microsoft.DataFactory/factories/linkedServices",
 			"apiVersion": "2018-06-01",
@@ -354,6 +385,50 @@
 			"dependsOn": [
 				"[concat(variables('factoryId'), '/linkedServices/ls_key_vault')]"
 			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/LS_Databricks_Workspace')]",
+			"type": "Microsoft.DataFactory/factories/linkedServices",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"annotations": [],
+				"type": "AzureDatabricks",
+				"typeProperties": {
+					"domain": "https://adb-7405605461580963.3.azuredatabricks.net",
+					"authentication": "MSI",
+					"workspaceResourceId": "/subscriptions/455fde4d-a77d-4a42-bbff-d13341a34203/resourceGroups/rg-daie-chn-dev/providers/Microsoft.Databricks/workspaces/dbw-daie-chn-dev",
+					"existingClusterId": "[parameters('LS_Databricks_Workspace_properties_typeProperties_existingClusterId')]"
+				}
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/ls_github_HttpServer')]",
+			"type": "Microsoft.DataFactory/factories/linkedServices",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"annotations": [],
+				"type": "HttpServer",
+				"typeProperties": {
+					"url": "[parameters('ls_github_HttpServer_properties_typeProperties_url')]",
+					"enableServerCertificateValidation": true,
+					"authenticationType": "Anonymous"
+				}
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/ls_key_vault')]",
+			"type": "Microsoft.DataFactory/factories/linkedServices",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"annotations": [],
+				"type": "AzureKeyVault",
+				"typeProperties": {
+					"baseUrl": "[parameters('ls_key_vault_properties_typeProperties_baseUrl')]"
+				}
+			},
+			"dependsOn": []
 		}
 	]
 }

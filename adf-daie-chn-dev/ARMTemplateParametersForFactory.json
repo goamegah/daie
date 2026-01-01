@@ -5,12 +5,6 @@
 		"factoryName": {
 			"value": "adf-daie-chn-dev"
 		},
-		"ls_github_HttpServer_properties_typeProperties_url": {
-			"value": "https://raw.githubusercontent.com/goamegah/daie/"
-		},
-		"ls_key_vault_properties_typeProperties_baseUrl": {
-			"value": "https://kv-daie-chn-dev-2025.vault.azure.net/"
-		},
 		"LS_ADLS_DataLake_properties_typeProperties_url": {
 			"value": "https://stadaiechndev.dfs.core.windows.net/"
 		},
@@ -19,6 +13,15 @@
 		},
 		"LS_ADLS_DataLake_properties_typeProperties_servicePrincipalId": {
 			"value": "95a69785-5397-4c66-91c2-1541f7a1eda8"
+		},
+		"LS_Databricks_Workspace_properties_typeProperties_existingClusterId": {
+			"value": "1222-133816-z75fnycy"
+		},
+		"ls_github_HttpServer_properties_typeProperties_url": {
+			"value": "https://raw.githubusercontent.com/goamegah/daie/"
+		},
+		"ls_key_vault_properties_typeProperties_baseUrl": {
+			"value": "https://kv-daie-chn-dev-2025.vault.azure.net/"
 		}
 	}
 }

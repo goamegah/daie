@@ -7,6 +7,10 @@
 			"metadata": "Data Factory name",
 			"defaultValue": "adf-daie-chn-dev"
 		},
+		"LS_Databricks_Workspace_properties_typeProperties_existingClusterId": {
+			"type": "string",
+			"defaultValue": "1222-133816-z75fnycy"
+		},
 		"ls_github_HttpServer_properties_typeProperties_url": {
 			"type": "string",
 			"defaultValue": "https://raw.githubusercontent.com/goamegah/daie/"
@@ -32,6 +36,22 @@
 		"factoryId": "[concat('Microsoft.DataFactory/factories/', parameters('factoryName'))]"
 	},
 	"resources": [
+		{
+			"name": "[concat(parameters('factoryName'), '/LS_Databricks_Workspace')]",
+			"type": "Microsoft.DataFactory/factories/linkedServices",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"annotations": [],
+				"type": "AzureDatabricks",
+				"typeProperties": {
+					"domain": "https://adb-7405605461580963.3.azuredatabricks.net",
+					"authentication": "MSI",
+					"workspaceResourceId": "/subscriptions/455fde4d-a77d-4a42-bbff-d13341a34203/resourceGroups/rg-daie-chn-dev/providers/Microsoft.Databricks/workspaces/dbw-daie-chn-dev",
+					"existingClusterId": "[parameters('LS_Databricks_Workspace_properties_typeProperties_existingClusterId')]"
+				}
+			},
+			"dependsOn": []
+		},
 		{
 			"name": "[concat(parameters('factoryName'), '/ls_github_HttpServer')]",
 			"type": "Microsoft.DataFactory/factories/linkedServices",
@@ -61,6 +81,58 @@
 			"dependsOn": []
 		},
 		{
+			"name": "[concat(parameters('factoryName'), '/09_pl_load_dl_opendata_caract_v1')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "09_pl_load_dl_opendata_caract_v1",
+						"type": "DatabricksJob",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"jobId": "611494910733577",
+							"jobParameters": {
+								"env": {
+									"value": "@pipeline().parameters.env",
+									"type": "Expression"
+								},
+								"source": "opendata",
+								"entity": "caract_v1"
+							}
+						},
+						"linkedServiceName": {
+							"referenceName": "LS_Databricks_Workspace",
+							"type": "LinkedServiceReference"
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"parameters": {
+					"env": {
+						"type": "string"
+					}
+				},
+				"folder": {
+					"name": "09_datalake_load/source/opendata"
+				},
+				"annotations": []
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/LS_Databricks_Workspace')]"
+			]
+		},
+		{
 			"name": "[concat(parameters('factoryName'), '/ds_github_csv')]",
 			"type": "Microsoft.DataFactory/factories/datasets",
 			"apiVersion": "2018-06-01",
@@ -87,7 +159,10 @@
 				"typeProperties": {
 					"location": {
 						"type": "HttpServerLocation",
-						"relativeUrl": "@{dataset().folderPath}/@{dataset().fileName}"
+						"relativeUrl": {
+							"value": "@{dataset().folderPath}/@{dataset().fileName}",
+							"type": "Expression"
+						}
 					},
 					"columnDelimiter": ",",
 					"escapeChar": "\\",
@@ -346,7 +421,7 @@
 					}
 				},
 				"folder": {
-					"name": "02_source_to_transient/opendata"
+					"name": "02_source_to_transient/source/opendata"
 				},
 				"annotations": []
 			},
