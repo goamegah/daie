@@ -1,60 +1,75 @@
 # daie/jobs/ml/eval.py
+import pandas as pd
 import mlflow
-import mlflow.spark
+import mlflow.sklearn
 
-from pyspark.sql import functions as F
-from pyspark.ml.evaluation import MulticlassClassificationEvaluator
+from sklearn.metrics import accuracy_score, f1_score
 
 DEST_DB = "daie_chn_dev_gold.dev_ml_accident_severity_prediction"
 TEST_TABLE = f"{DEST_DB}.accident_test_v1"
 PRED_TABLE = f"{DEST_DB}.accident_test_pred_v1"
 
-# MODEL_URI_DEFAULT = "models:/accident_severity_rf/Production"
-MODEL_URI_DEFAULT = None  
-
 def main():
-    df_test = spark.table(TEST_TABLE)
-
-    # récupérer le model_uri depuis le task précédent (train)
-    model_uri = MODEL_URI_DEFAULT
+    # récupérer model_uri depuis le task train dans le workflow
+    model_uri = None
     try:
         model_uri = dbutils.jobs.taskValues.get(taskKey="train", key="model_uri")
     except Exception:
         pass
 
     if not model_uri:
-        raise ValueError("No model_uri found. Provide MODEL_URI_DEFAULT or pass via workflow taskValues.")
+        raise ValueError("model_uri introuvable. Assure-toi que le task train set taskValues model_uri et que son taskKey = 'train'.")
 
-    model = mlflow.spark.load_model(model_uri)
+    bundle = mlflow.sklearn.load_model(model_uri)
+    model = bundle["model"]
+    scaler = bundle["scaler"]
+    feature_cols = bundle["feature_cols"]
 
-    pred = model.transform(df_test)
+    sdf = spark.table(TEST_TABLE)
+    pdf = sdf.toPandas()
 
-    pred_out = pred.select(
-        "num_acc", "grav", "target",
-        *[c for c in df_test.columns if c not in ["num_acc", "grav", "target"]],
-        F.col("prediction").cast("int").alias("prediction")
-    )
+    pdf.columns = [c.lower() for c in pdf.columns]
+    pdf = pdf.dropna()
 
-    # métriques
-    evaluator_acc = MulticlassClassificationEvaluator(labelCol="target", predictionCol="prediction", metricName="accuracy")
-    evaluator_f1  = MulticlassClassificationEvaluator(labelCol="target", predictionCol="prediction", metricName="f1")
+    # target
+    pdf["target"] = pdf["grav"].apply(lambda x: 1 if x >= 3 else 0)
 
-    acc = evaluator_acc.evaluate(pred)
-    f1  = evaluator_f1.evaluate(pred)
+    X = pdf.drop(columns=["num_acc", "grav", "target"])
+    y = pdf["target"]
+
+    # conversion numeric coerce + dropna aligné
+    for c in X.columns:
+        X[c] = pd.to_numeric(X[c], errors="coerce")
+
+    valid_idx = X.dropna().index
+    X = X.loc[valid_idx]
+    y = y.loc[valid_idx]
+    pdf = pdf.loc[valid_idx]
+
+    X = X[feature_cols]
+
+    X_scaled = scaler.transform(X)
+    preds = model.predict(X_scaled)
+
+    acc = accuracy_score(y, preds)
+    f1 = f1_score(y, preds)
 
     mlflow.set_experiment("/Shared/accident_severity_prediction")
-
-    with mlflow.start_run(run_name="eval_rf_spark"):
+    with mlflow.start_run(run_name="accident_gravity_eval_agg"):
         mlflow.log_param("model_uri", model_uri)
         mlflow.log_metric("accuracy", float(acc))
         mlflow.log_metric("f1_score", float(f1))
 
-    (pred_out.write.mode("overwrite").format("delta").saveAsTable(PRED_TABLE))
+    pdf_out = pdf.copy()
+    pdf_out["prediction"] = preds.astype(int)
 
-    print(" Metrics:")
-    print(" - accuracy:", acc)
-    print(" - f1_score:", f1)
+    # écrire table delta
+    pred_sdf = spark.createDataFrame(pdf_out)
+    (pred_sdf.write.mode("overwrite").option("overwriteSchema", "true").format("delta").saveAsTable(PRED_TABLE))
+
     print(" Written:", PRED_TABLE)
+    print(f"Accuracy: {acc:.3f}")
+    print(f"F1-score: {f1:.3f}")
 
 if __name__ == "__main__":
     main()

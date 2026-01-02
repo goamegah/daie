@@ -1,67 +1,84 @@
+# daie/jobs/ml/train.py
+import pandas as pd
 import mlflow
-import mlflow.spark
+import mlflow.sklearn
 
-from pyspark.ml import Pipeline
-from pyspark.ml.feature import StringIndexer, VectorAssembler, StandardScaler
-from pyspark.ml.classification import RandomForestClassifier
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+from sklearn.metrics import accuracy_score, f1_score
+from daie.jobs.ml.model import get_model
+
+
 
 DEST_DB = "daie_chn_dev_gold.dev_ml_accident_severity_prediction"
 TRAIN_TABLE = f"{DEST_DB}.accident_train_v1"
 
-REGISTER_MODEL_NAME = "accident_severity_rf"
-
-CATEGORICAL_COLS = ["lum", "atm", "col", "int"]
-NUMERIC_COLS = ["hrmn"]
-LABEL_COL = "target"
+FEATURE_COLS = ["lum", "atm", "col", "jour", "mois", "vma", "circ", "nbv", "surf", "infra", "situ", "hrmn_minutes"]
 
 def main():
-    df_train = spark.table(TRAIN_TABLE)
+    sdf = spark.table(TRAIN_TABLE)
+    pdf = sdf.toPandas()
 
-    indexers = [
-        StringIndexer(inputCol=c, outputCol=f"{c}_idx", handleInvalid="keep")
-        for c in CATEGORICAL_COLS
-    ]
+    pdf.columns = [c.lower() for c in pdf.columns]
+    pdf = pdf.dropna()
 
-    feature_inputs = [f"{c}_idx" for c in CATEGORICAL_COLS] + NUMERIC_COLS
+    pdf["target"] = pdf["grav"].apply(lambda x: 1 if x >= 3 else 0)
 
-    assembler = VectorAssembler(inputCols=feature_inputs, outputCol="features_raw", handleInvalid="keep")
-    scaler = StandardScaler(inputCol="features_raw", outputCol="features", withMean=True, withStd=True)
+    X = pdf.drop(columns=["num_acc", "grav", "target"])
+    y = pdf["target"]
 
-    rf = RandomForestClassifier(
-        labelCol=LABEL_COL,
-        featuresCol="features",
-        numTrees=200,
-        maxDepth=10,
-        seed=42
+    for c in X.columns:
+        X[c] = pd.to_numeric(X[c], errors="coerce")
+
+    valid_idx = X.dropna().index
+    X = X.loc[valid_idx]
+    y = y.loc[valid_idx]
+
+    X_train, X_val, y_train, y_val = train_test_split(
+        X, y,
+        test_size=0.2,
+        random_state=42,
+        stratify=y
     )
 
-    pipeline = Pipeline(stages=indexers + [assembler, scaler, rf])
+    scaler = StandardScaler()
+    X_train_scaled = scaler.fit_transform(X_train)
+    X_val_scaled = scaler.transform(X_val)
 
-    mlflow.set_experiment("/Shared/accident_severity_prediction") 
+    model = get_model(n_estimators=200)
+    mlflow.set_experiment("/Shared/accident_severity_prediction")
 
-    with mlflow.start_run(run_name="train_rf_spark"):
-        model = pipeline.fit(df_train)
+    with mlflow.start_run(run_name="accident_gravity_prediction_agg"):
+        model.fit(X_train_scaled, y_train)
+        preds = model.predict(X_val_scaled)
 
-        # log modèle spark
-        mlflow.spark.log_model(
-            spark_model=model,
-            artifact_path="model",
-            registered_model_name=REGISTER_MODEL_NAME  
-        )
+        acc = accuracy_score(y_val, preds)
+        f1 = f1_score(y_val, preds)
 
-        # log params
-        mlflow.log_param("algo", "RandomForestClassifier (Spark)")
-        mlflow.log_param("numTrees", 200)
-        mlflow.log_param("maxDepth", 10)
+        mlflow.log_param("model", "RandomForestClassifier")
+        mlflow.log_param("n_estimators", 200)
+        mlflow.log_param("class_weight", "balanced")
+        mlflow.log_param("features", ",".join(list(X.columns)))
+
+        mlflow.log_metric("accuracy", float(acc))
+        mlflow.log_metric("f1_score", float(f1))
+
+        # IMPORTANT: log aussi le scaler + model ensemble
+        # => on crée un petit dict packagé
+        artifact = {"model": model, "scaler": scaler, "feature_cols": list(X.columns)}
+        mlflow.sklearn.log_model(artifact, "model_bundle")
 
         run_id = mlflow.active_run().info.run_id
-        model_uri = f"runs:/{run_id}/model"
-        print("model_uri =", model_uri)
+        model_uri = f"runs:/{run_id}/model_bundle"
+        print(" model_uri:", model_uri)
 
         try:
             dbutils.jobs.taskValues.set(key="model_uri", value=model_uri)
         except Exception:
             pass
+
+        print(f"Accuracy: {acc:.3f}")
+        print(f"F1-score: {f1:.3f}")
 
 if __name__ == "__main__":
     main()
