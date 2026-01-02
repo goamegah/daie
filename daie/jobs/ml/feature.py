@@ -1,4 +1,8 @@
 from pyspark.sql import functions as F
+from pyspark.sql import SparkSession
+
+spark = SparkSession.builder.getOrCreate()
+
 
 TABLE = "daie_chn_dev_gold.dev_datamart_opendata.accident_v1"
 

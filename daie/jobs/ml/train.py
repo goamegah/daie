@@ -8,6 +8,11 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import accuracy_score, f1_score
 from daie.jobs.ml.model import get_model
 
+from pyspark.sql import SparkSession
+
+spark = SparkSession.builder.getOrCreate()
+
+
 
 
 DEST_DB = "daie_chn_dev_gold.dev_ml_accident_severity_prediction"

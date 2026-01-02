@@ -2,6 +2,9 @@
 import pandas as pd
 import mlflow
 import mlflow.sklearn
+from pyspark.sql import SparkSession
+
+
 
 from sklearn.metrics import accuracy_score, f1_score
 
@@ -24,7 +27,7 @@ def main():
     model = bundle["model"]
     scaler = bundle["scaler"]
     feature_cols = bundle["feature_cols"]
-
+    spark = SparkSession.builder.getOrCreate()
     sdf = spark.table(TEST_TABLE)
     pdf = sdf.toPandas()
 
