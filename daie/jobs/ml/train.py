@@ -1,60 +1,67 @@
-# daie/jobs/ml/train.py
-
 import mlflow
-import mlflow.sklearn
-import pandas as pd
+import mlflow.spark
 
-from sklearn.pipeline import Pipeline
-from sklearn.preprocessing import StandardScaler
-from sklearn.ensemble import RandomForestClassifier
+from pyspark.ml import Pipeline
+from pyspark.ml.feature import StringIndexer, VectorAssembler, StandardScaler
+from pyspark.ml.classification import RandomForestClassifier
 
-from daie.jobs.ml.config import (
-    TABLE_TRAIN, TABLE_META, FEATURE_COLS, TARGET_COL, RANDOM_STATE, MLFLOW_EXPERIMENT
-)
+DEST_DB = "daie_chn_dev_gold.dev_ml_accident_severity_prediction"
+TRAIN_TABLE = f"{DEST_DB}.accident_train_v1"
 
-def main(spark):
-    sdf = spark.table(TABLE_TRAIN)
+REGISTER_MODEL_NAME = "accident_severity_rf"
 
-    # pandas pour sklearn (comme ton notebook)
-    pdf = sdf.select(*(FEATURE_COLS + [TARGET_COL])).toPandas()
+CATEGORICAL_COLS = ["lum", "atm", "col", "int"]
+NUMERIC_COLS = ["hrmn"]
+LABEL_COL = "target"
 
-    # coerce numeric + drop NaN
-    for c in FEATURE_COLS:
-        pdf[c] = pd.to_numeric(pdf[c], errors="coerce")
-    pdf = pdf.dropna(subset=FEATURE_COLS + [TARGET_COL])
+def main():
+    df_train = spark.table(TRAIN_TABLE)
 
-    X_train = pdf[FEATURE_COLS]
-    y_train = pdf[TARGET_COL]
+    indexers = [
+        StringIndexer(inputCol=c, outputCol=f"{c}_idx", handleInvalid="keep")
+        for c in CATEGORICAL_COLS
+    ]
 
-    pipeline = Pipeline(steps=[
-        ("scaler", StandardScaler()),
-        ("model", RandomForestClassifier(
-            n_estimators=200,
-            random_state=RANDOM_STATE,
-            n_jobs=-1,
-            class_weight="balanced"
-        ))
-    ])
+    feature_inputs = [f"{c}_idx" for c in CATEGORICAL_COLS] + NUMERIC_COLS
 
-    mlflow.set_experiment(MLFLOW_EXPERIMENT)
+    assembler = VectorAssembler(inputCols=feature_inputs, outputCol="features_raw", handleInvalid="keep")
+    scaler = StandardScaler(inputCol="features_raw", outputCol="features", withMean=True, withStd=True)
 
-    with mlflow.start_run(run_name="train_accident_severity") as run:
-        pipeline.fit(X_train, y_train)
+    rf = RandomForestClassifier(
+        labelCol=LABEL_COL,
+        featuresCol="features",
+        numTrees=200,
+        maxDepth=10,
+        seed=42
+    )
 
-        mlflow.log_param("model", "RandomForestClassifier")
-        mlflow.log_param("n_estimators", 200)
-        mlflow.log_param("features", ",".join(FEATURE_COLS))
+    pipeline = Pipeline(stages=indexers + [assembler, scaler, rf])
 
-        # log pipeline complet
-        mlflow.sklearn.log_model(pipeline, "model")
+    mlflow.set_experiment("/Shared/accident_severity_prediction") 
 
-        run_id = run.info.run_id
-        print("Train done. run_id:", run_id)
+    with mlflow.start_run(run_name="train_rf_spark"):
+        model = pipeline.fit(df_train)
 
-    # écrit metadata pour que eval retrouve le dernier modèle
-    meta_pdf = pd.DataFrame([{"model_run_id": run_id}])
-    spark.createDataFrame(meta_pdf).write.mode("overwrite").format("delta").saveAsTable(TABLE_META)
-    print("Saved metadata:", TABLE_META)
+        # log modèle spark
+        mlflow.spark.log_model(
+            spark_model=model,
+            artifact_path="model",
+            registered_model_name=REGISTER_MODEL_NAME  
+        )
+
+        # log params
+        mlflow.log_param("algo", "RandomForestClassifier (Spark)")
+        mlflow.log_param("numTrees", 200)
+        mlflow.log_param("maxDepth", 10)
+
+        run_id = mlflow.active_run().info.run_id
+        model_uri = f"runs:/{run_id}/model"
+        print("model_uri =", model_uri)
+
+        try:
+            dbutils.jobs.taskValues.set(key="model_uri", value=model_uri)
+        except Exception:
+            pass
 
 if __name__ == "__main__":
-    main(spark)
+    main()

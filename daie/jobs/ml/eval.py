@@ -1,56 +1,60 @@
 # daie/jobs/ml/eval.py
-
 import mlflow
-import mlflow.sklearn
-import pandas as pd
+import mlflow.spark
 
-from sklearn.metrics import accuracy_score, f1_score
+from pyspark.sql import functions as F
+from pyspark.ml.evaluation import MulticlassClassificationEvaluator
 
-from daie.jobs.ml.config import (
-    TABLE_TEST, TABLE_PRED, TABLE_META, FEATURE_COLS, TARGET_COL, MLFLOW_EXPERIMENT, ID_COL
-)
+DEST_DB = "daie_chn_dev_gold.dev_ml_accident_severity_prediction"
+TEST_TABLE = f"{DEST_DB}.accident_test_v1"
+PRED_TABLE = f"{DEST_DB}.accident_test_pred_v1"
 
-def main(spark, model_run_id: str | None = None):
-    # récup run_id depuis metadata si non fourni
-    if not model_run_id:
-        meta = spark.table(TABLE_META).limit(1).collect()
-        if not meta:
-            raise ValueError(f"No metadata found in {TABLE_META}")
-        model_run_id = meta[0]["model_run_id"]
-        print("Loaded model_run_id:", model_run_id)
+# MODEL_URI_DEFAULT = "models:/accident_severity_rf/Production"
+MODEL_URI_DEFAULT = None  
 
-    # recharge pipeline
-    pipeline = mlflow.sklearn.load_model(f"runs:/{model_run_id}/model")
+def main():
+    df_test = spark.table(TEST_TABLE)
 
-    sdf = spark.table(TABLE_TEST).dropna()
-    pdf = sdf.select(ID_COL, *FEATURE_COLS, TARGET_COL).toPandas()
+    # récupérer le model_uri depuis le task précédent (train)
+    model_uri = MODEL_URI_DEFAULT
+    try:
+        model_uri = dbutils.jobs.taskValues.get(taskKey="train", key="model_uri")
+    except Exception:
+        pass
 
-    # coerce numeric + drop NaN
-    for c in FEATURE_COLS:
-        pdf[c] = pd.to_numeric(pdf[c], errors="coerce")
-    pdf = pdf.dropna(subset=FEATURE_COLS + [TARGET_COL])
+    if not model_uri:
+        raise ValueError("No model_uri found. Provide MODEL_URI_DEFAULT or pass via workflow taskValues.")
 
-    X = pdf[FEATURE_COLS]
-    y = pdf[TARGET_COL]
+    model = mlflow.spark.load_model(model_uri)
 
-    preds = pipeline.predict(X)
+    pred = model.transform(df_test)
 
-    acc = accuracy_score(y, preds)
-    f1 = f1_score(y, preds)
+    pred_out = pred.select(
+        "num_acc", "grav", "target",
+        *[c for c in df_test.columns if c not in ["num_acc", "grav", "target"]],
+        F.col("prediction").cast("int").alias("prediction")
+    )
 
-    mlflow.set_experiment(MLFLOW_EXPERIMENT)
-    with mlflow.start_run(run_name="eval_accident_severity") as run:
-        mlflow.set_tag("trained_model_run_id", model_run_id)
-        mlflow.log_metric("test_accuracy", acc)
-        mlflow.log_metric("test_f1", f1)
+    # métriques
+    evaluator_acc = MulticlassClassificationEvaluator(labelCol="target", predictionCol="prediction", metricName="accuracy")
+    evaluator_f1  = MulticlassClassificationEvaluator(labelCol="target", predictionCol="prediction", metricName="f1")
 
-    print("test_accuracy:", acc, "test_f1:", f1)
+    acc = evaluator_acc.evaluate(pred)
+    f1  = evaluator_f1.evaluate(pred)
 
-    out = pdf[[ID_COL]].copy()
-    out["prediction"] = preds
+    mlflow.set_experiment("/Shared/accident_severity_prediction")
 
-    spark.createDataFrame(out).write.mode("overwrite").format("delta").saveAsTable(TABLE_PRED)
-    print("Saved predictions table:", TABLE_PRED)
+    with mlflow.start_run(run_name="eval_rf_spark"):
+        mlflow.log_param("model_uri", model_uri)
+        mlflow.log_metric("accuracy", float(acc))
+        mlflow.log_metric("f1_score", float(f1))
+
+    (pred_out.write.mode("overwrite").format("delta").saveAsTable(PRED_TABLE))
+
+    print(" Metrics:")
+    print(" - accuracy:", acc)
+    print(" - f1_score:", f1)
+    print(" Written:", PRED_TABLE)
 
 if __name__ == "__main__":
-    main(spark)
+    main()

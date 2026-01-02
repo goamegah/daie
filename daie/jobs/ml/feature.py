@@ -1,46 +1,53 @@
 # daie/jobs/ml/feature.py
-
 from pyspark.sql import functions as F
 
-from daie.jobs.ml.config import (
-    TABLE_SOURCE, CATALOG, SCHEMA_ML, TABLE_TRAIN, TABLE_TEST,
-    FEATURE_COLS, ID_COL, TARGET_COL_RAW, TARGET_COL, TEST_SIZE, RANDOM_STATE
-)
-from daie.jobs.ml.utils import ensure_schema, add_hrmn_minutes, clean_and_cast_numeric, build_binary_target
+SOURCE_TABLE = "daie_chn_dev_gold.dev_datamart_opendata.accident_v1"
+DEST_DB = "daie_chn_dev_gold.dev_ml_accident_severity_prediction"
+TRAIN_TABLE = f"{DEST_DB}.accident_train_v1"
+TEST_TABLE  = f"{DEST_DB}.accident_test_v1"
 
-def main(spark):
-    ensure_schema(spark, CATALOG, SCHEMA_ML)
+FEATURE_COLS = ["lum", "atm", "col", "int", "hrmn"]  
 
-    sdf = spark.table(TABLE_SOURCE)
+def main():
+    spark.sql(f"CREATE SCHEMA IF NOT EXISTS {DEST_DB}")
 
-    # 1) hrmn -> minutes
-    sdf2 = add_hrmn_minutes(sdf)
+    df = spark.table(SOURCE_TABLE)
 
-    # 2) garder colonnes utiles
-    keep = [ID_COL] + FEATURE_COLS + [TARGET_COL_RAW]
-    sdf2 = sdf2.select(*[F.col(c) for c in keep]).dropna()
+    # --- nettoyage / sélection ---
+    # hrmn: si format "HH:MM" -> minutes
+    df = df.withColumn(
+        "hrmn",
+        F.when(F.col("hrmn").contains(":"),
+               F.split(F.col("hrmn"), ":").getItem(0).cast("int") * 60 +
+               F.split(F.col("hrmn"), ":").getItem(1).cast("int")
+        ).otherwise(F.col("hrmn").cast("int"))
+    )
 
-    # 3) 1 ligne / accident
-    agg_exprs = [F.first(c, ignorenulls=True).alias(c) for c in FEATURE_COLS] + [
-        F.max(TARGET_COL_RAW).alias(TARGET_COL_RAW)
-    ]
-    df_acc = sdf2.groupBy(ID_COL).agg(*agg_exprs)
+    # target binaire : grav>=3 => 1 sinon 0
+    df = df.withColumn("target", F.when(F.col("grav") >= 3, F.lit(1)).otherwise(F.lit(0)))
 
-    # 4) target binaire
-    df_acc = build_binary_target(df_acc, TARGET_COL_RAW, TARGET_COL)
+    # garder colonnes utiles
+    keep = ["num_acc", "grav", "target"] + FEATURE_COLS
+    df = df.select(*keep).dropna(subset=keep)
 
-    # 5) cast numeric + drop rows invalides
-    df_acc = clean_and_cast_numeric(df_acc, FEATURE_COLS).dropna(subset=FEATURE_COLS + [TARGET_COL])
+    df = df.dropDuplicates(["num_acc"]) 
+     
+    # --- split stratifié approximatif ---
+    # sampleBy prend une fraction par classe (ici 80% train, 20% test)
+    fractions = {0: 0.8, 1: 0.8}
+    train = df.stat.sampleBy("target", fractions=fractions, seed=42)
 
-    # 6) split
-    train_df, test_df = df_acc.randomSplit([1 - TEST_SIZE, TEST_SIZE], seed=RANDOM_STATE)
+    # test = reste
+    # pour être safe: anti-join sur num_acc
+    test = df.join(train.select("num_acc"), on="num_acc", how="left_anti")
 
-    # 7) save tables
-    train_df.write.mode("overwrite").format("delta").saveAsTable(TABLE_TRAIN)
-    test_df.write.mode("overwrite").format("delta").saveAsTable(TABLE_TEST)
+    # --- write Delta tables ---
+    (train.write.mode("overwrite").format("delta").saveAsTable(TRAIN_TABLE))
+    (test.write.mode("overwrite").format("delta").saveAsTable(TEST_TABLE))
 
-    print(f"Saved train: {TABLE_TRAIN} rows: {train_df.count()}")
-    print(f"Saved test : {TABLE_TEST} rows: {test_df.count()}")
+    print("Written:")
+    print(" -", TRAIN_TABLE, train.count())
+    print(" -", TEST_TABLE, test.count())
 
 if __name__ == "__main__":
-    main(spark)
+    main()
