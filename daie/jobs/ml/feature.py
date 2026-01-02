@@ -1,48 +1,46 @@
-from __future__ import annotations
+# daie/jobs/ml/feature.py
 
 from pyspark.sql import functions as F
 
-from daie.jobs.ml.data import load_data_from_table, DEFAULT_FEATURE_COLS
+from daie.jobs.ml.config import (
+    TABLE_SOURCE, CATALOG, SCHEMA_ML, TABLE_TRAIN, TABLE_TEST,
+    FEATURE_COLS, ID_COL, TARGET_COL_RAW, TARGET_COL, TEST_SIZE, RANDOM_STATE
+)
+from daie.jobs.ml.utils import ensure_schema, add_hrmn_minutes, clean_and_cast_numeric, build_binary_target
 
-SOURCE_TABLE = "daie_chn_dev_gold.dev_datamart_opendata.accident_v1"
+def main(spark):
+    ensure_schema(spark, CATALOG, SCHEMA_ML)
 
-OUT_SCHEMA = "daie_chn_dev_gold.dev_ml_accident_severity_prediction"
-TRAIN_TABLE = f"{OUT_SCHEMA}.accident_train_v1"
-TEST_TABLE  = f"{OUT_SCHEMA}.accident_test_v1"
+    sdf = spark.table(TABLE_SOURCE)
 
-def main(
-    spark,
-    source_table: str = SOURCE_TABLE,
-    train_table: str = TRAIN_TABLE,
-    test_table: str = TEST_TABLE,
-    test_ratio: float = 0.2,
-    seed: int = 42,
-):
-    df = load_data_from_table(
-        spark=spark,
-        table_name=source_table,
-        feature_cols=DEFAULT_FEATURE_COLS,
-        id_col="Num_Acc",
-        target_col="grav",
-    )
+    # 1) hrmn -> minutes
+    sdf2 = add_hrmn_minutes(sdf)
 
-    agg_exprs = [
-        F.first(c, ignorenulls=True).alias(c)
-        for c in (DEFAULT_FEATURE_COLS + ["hrmn_minutes"])
-    ] + [F.max("grav").alias("grav")]
+    # 2) garder colonnes utiles
+    keep = [ID_COL] + FEATURE_COLS + [TARGET_COL_RAW]
+    sdf2 = sdf2.select(*[F.col(c) for c in keep]).dropna()
 
-    df_acc = df.groupBy("Num_Acc").agg(*agg_exprs).dropna()
+    # 3) 1 ligne / accident
+    agg_exprs = [F.first(c, ignorenulls=True).alias(c) for c in FEATURE_COLS] + [
+        F.max(TARGET_COL_RAW).alias(TARGET_COL_RAW)
+    ]
+    df_acc = sdf2.groupBy(ID_COL).agg(*agg_exprs)
 
-    # Target binaire : grav >= 3 = grave
-    df_acc = df_acc.withColumn("target", F.when(F.col("grav") >= 3, 1).otherwise(0))
+    # 4) target binaire
+    df_acc = build_binary_target(df_acc, TARGET_COL_RAW, TARGET_COL)
 
-    train_df, test_df = df_acc.randomSplit([1 - test_ratio, test_ratio], seed=seed)
+    # 5) cast numeric + drop rows invalides
+    df_acc = clean_and_cast_numeric(df_acc, FEATURE_COLS).dropna(subset=FEATURE_COLS + [TARGET_COL])
 
-    train_df.write.mode("overwrite").format("delta").saveAsTable(train_table)
-    test_df.write.mode("overwrite").format("delta").saveAsTable(test_table)
+    # 6) split
+    train_df, test_df = df_acc.randomSplit([1 - TEST_SIZE, TEST_SIZE], seed=RANDOM_STATE)
 
-    print(" Saved train:", train_table, "rows:", train_df.count())
-    print(" Saved test :", test_table,  "rows:", test_df.count())
+    # 7) save tables
+    train_df.write.mode("overwrite").format("delta").saveAsTable(TABLE_TRAIN)
+    test_df.write.mode("overwrite").format("delta").saveAsTable(TABLE_TEST)
+
+    print(f"Saved train: {TABLE_TRAIN} rows: {train_df.count()}")
+    print(f"Saved test : {TABLE_TEST} rows: {test_df.count()}")
 
 if __name__ == "__main__":
     main(spark)

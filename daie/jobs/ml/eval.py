@@ -1,60 +1,56 @@
-from __future__ import annotations
+# daie/jobs/ml/eval.py
 
 import mlflow
 import mlflow.sklearn
+import pandas as pd
 
 from sklearn.metrics import accuracy_score, f1_score
 
-OUT_SCHEMA = "daie_chn_dev_gold.dev_ml_accident_severity_prediction"
-TEST_TABLE = f"{OUT_SCHEMA}.accident_test_v1"
-PRED_TABLE = f"{OUT_SCHEMA}.accident_test_predictions_v1"
-META_TABLE = f"{OUT_SCHEMA}.ml_metadata_v1"
+from daie.jobs.ml.config import (
+    TABLE_TEST, TABLE_PRED, TABLE_META, FEATURE_COLS, TARGET_COL, MLFLOW_EXPERIMENT, ID_COL
+)
 
-FEATURE_COLS = ["lum","atm","col","jour","mois","vma","circ","nbv","surf","infra","situ","hrmn_minutes"]
-
-def main(
-    spark,
-    test_table: str = TEST_TABLE,
-    pred_table: str = PRED_TABLE,
-    meta_table: str = META_TABLE,
-    model_run_id: str | None = None,
-):
+def main(spark, model_run_id: str | None = None):
+    # récup run_id depuis metadata si non fourni
     if not model_run_id:
-        meta = spark.table(meta_table).limit(1).collect()
+        meta = spark.table(TABLE_META).limit(1).collect()
         if not meta:
-            raise ValueError(f"No metadata found in {meta_table}")
+            raise ValueError(f"No metadata found in {TABLE_META}")
         model_run_id = meta[0]["model_run_id"]
-        print(" loaded model_run_id:", model_run_id)
+        print("Loaded model_run_id:", model_run_id)
 
-    model = mlflow.sklearn.load_model(f"runs:/{model_run_id}/model")
-    scaler = mlflow.sklearn.load_model(f"runs:/{model_run_id}/scaler")
+    # recharge pipeline
+    pipeline = mlflow.sklearn.load_model(f"runs:/{model_run_id}/model")
 
-    sdf = spark.table(test_table).dropna()
-    pdf = sdf.select("Num_Acc", *FEATURE_COLS, "target").toPandas()
+    sdf = spark.table(TABLE_TEST).dropna()
+    pdf = sdf.select(ID_COL, *FEATURE_COLS, TARGET_COL).toPandas()
+
+    # coerce numeric + drop NaN
+    for c in FEATURE_COLS:
+        pdf[c] = pd.to_numeric(pdf[c], errors="coerce")
+    pdf = pdf.dropna(subset=FEATURE_COLS + [TARGET_COL])
 
     X = pdf[FEATURE_COLS]
-    y = pdf["target"]
+    y = pdf[TARGET_COL]
 
-    Xs = scaler.transform(X)
-    preds = model.predict(Xs)
+    preds = pipeline.predict(X)
 
     acc = accuracy_score(y, preds)
     f1 = f1_score(y, preds)
 
-    with mlflow.start_run(run_name="accident_eval_v1") as run:
+    mlflow.set_experiment(MLFLOW_EXPERIMENT)
+    with mlflow.start_run(run_name="eval_accident_severity") as run:
         mlflow.set_tag("trained_model_run_id", model_run_id)
         mlflow.log_metric("test_accuracy", acc)
         mlflow.log_metric("test_f1", f1)
 
-        print(" test_accuracy:", acc, "test_f1:", f1)
+    print("test_accuracy:", acc, "test_f1:", f1)
 
-    out = pdf[["Num_Acc"]].copy()
+    out = pdf[[ID_COL]].copy()
     out["prediction"] = preds
 
-    pred_sdf = spark.createDataFrame(out)
-    pred_sdf.write.mode("overwrite").format("delta").saveAsTable(pred_table)
-
-    print(" saved predictions table:", pred_table)
+    spark.createDataFrame(out).write.mode("overwrite").format("delta").saveAsTable(TABLE_PRED)
+    print("Saved predictions table:", TABLE_PRED)
 
 if __name__ == "__main__":
     main(spark)
