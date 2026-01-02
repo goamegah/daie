@@ -26,9 +26,8 @@ def main():
     # target binaire : grav>=3 => 1 sinon 0
     df = df.withColumn("target", F.when(F.col("grav") >= 3, F.lit(1)).otherwise(F.lit(0)))
     
-    num_cols = ["jour","mois","an","hrmn","lat","long","circ"] 
-    for c in num_cols:
-        df = df.withColumn(c, F.expr(f"try_cast({c} as double)"))
+    df = df.withColumn("circ", F.expr("try_cast(circ as int)"))
+
 
 
     # garder colonnes utiles
