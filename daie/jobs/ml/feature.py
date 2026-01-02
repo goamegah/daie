@@ -14,7 +14,7 @@ def _normalize_cols(df):
             df = df.withColumnRenamed(c, c.lower())
     return df
 
-def main():
+def main(spark):
     spark.sql(f"CREATE SCHEMA IF NOT EXISTS {DEST_DB}")
 
     sdf = spark.table(SOURCE_TABLE)
@@ -65,4 +65,4 @@ def main():
     print(" -", TEST_TABLE, test.count())
 
 if __name__ == "__main__":
-    main()
+    main

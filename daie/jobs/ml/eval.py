@@ -9,7 +9,7 @@ DEST_DB = "daie_chn_dev_gold.dev_ml_accident_severity_prediction"
 TEST_TABLE = f"{DEST_DB}.accident_test_v1"
 PRED_TABLE = f"{DEST_DB}.accident_test_pred_v1"
 
-def main():
+def main(spark):
     # récupérer model_uri depuis le task train dans le workflow
     model_uri = None
     try:

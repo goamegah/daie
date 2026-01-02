@@ -15,7 +15,7 @@ TRAIN_TABLE = f"{DEST_DB}.accident_train_v1"
 
 FEATURE_COLS = ["lum", "atm", "col", "jour", "mois", "vma", "circ", "nbv", "surf", "infra", "situ", "hrmn_minutes"]
 
-def main():
+def main(spark):
     sdf = spark.table(TRAIN_TABLE)
     pdf = sdf.toPandas()
 
