@@ -25,6 +25,11 @@ def main():
 
     # target binaire : grav>=3 => 1 sinon 0
     df = df.withColumn("target", F.when(F.col("grav") >= 3, F.lit(1)).otherwise(F.lit(0)))
+    
+    num_cols = ["jour","mois","an","hrmn","lat","long","circ"] 
+    for c in num_cols:
+        df = df.withColumn(c, F.expr(f"try_cast({c} as double)"))
+
 
     # garder colonnes utiles
     keep = ["num_acc", "grav", "target"] + FEATURE_COLS
@@ -42,8 +47,20 @@ def main():
     test = df.join(train.select("num_acc"), on="num_acc", how="left_anti")
 
     # --- write Delta tables ---
-    (train.write.mode("overwrite").format("delta").saveAsTable(TRAIN_TABLE))
-    (test.write.mode("overwrite").format("delta").saveAsTable(TEST_TABLE))
+    (train.write
+    .mode("overwrite")
+    .option("overwriteSchema", "true")
+    .format("delta")
+    .saveAsTable(TRAIN_TABLE)
+    )
+
+    (test.write
+    .mode("overwrite")
+    .option("overwriteSchema", "true")
+    .format("delta")
+    .saveAsTable(TEST_TABLE)
+    )
+
 
     print("Written:")
     print(" -", TRAIN_TABLE, train.count())
