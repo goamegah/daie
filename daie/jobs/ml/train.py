@@ -15,7 +15,7 @@ TRAIN_TABLE = f"{DEST_DB}.accident_train_v1"
 
 FEATURE_COLS = ["lum", "atm", "col", "jour", "mois", "vma", "circ", "nbv", "surf", "infra", "situ", "hrmn_minutes"]
 
-def main(spark):
+def main():
     sdf = spark.table(TRAIN_TABLE)
     pdf = sdf.toPandas()
 
@@ -73,7 +73,7 @@ def main(spark):
         print(" model_uri:", model_uri)
 
         try:
-            dbutils.jobs.taskValues.set(key="model_uri", value=model_uri)
+            dbutils.jobs.taskValues.set(key="model_uri", value=model_uri) #pour le workflow 
         except Exception:
             pass
 

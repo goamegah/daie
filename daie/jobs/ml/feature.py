@@ -14,7 +14,7 @@ def _lower_cols(df):
             df = df.withColumnRenamed(c, c.lower())
     return df
 
-def main(spark):
+def main():
     spark.sql(f"CREATE SCHEMA IF NOT EXISTS {DEST_DB}")
 
     sdf = spark.table(TABLE)
