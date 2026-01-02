@@ -231,3 +231,7 @@ notebook/
 .vscode/
 .*
 local/
+
+
+#mlflow
+mlruns/
