@@ -1,17 +1,27 @@
-from dbx_config import *
-import dbutils
-from pyspark.sql import SparkSession
+# JOB 1 — LANDING → BRONZE
 
-spark = SparkSession.builder.getOrCreate()
+CATALOG = "daie_chn_dev_bronze"
+SCHEMA = "accidents"
+YEAR = "2023"
 
-FILES = ["caract-2023.csv", "lieux-2023.csv", "usagers-2023.csv", "vehicules-2023.csv"]
+LANDING_ROOT = f"/Volumes/{CATALOG}/{SCHEMA}/landing/baac/{YEAR}"
+BRONZE_ROOT  = f"/Volumes/{CATALOG}/{SCHEMA}/bronze/baac/{YEAR}"
 
-LANDING_ROOT = vol_path(BRONZE_CATALOG, SCHEMA, V_LANDING, "baac", YEAR)
-BRONZE_ROOT  = vol_path(BRONZE_CATALOG, SCHEMA, V_BRONZE,  "baac", YEAR)
+FILES = [
+    "caract-2023.csv",
+    "lieux-2023.csv",
+    "usagers-2023.csv",
+    "vehicules-2023.csv"
+]
 
 dbutils.fs.mkdirs(BRONZE_ROOT)
 
 for f in FILES:
-    dbutils.fs.cp(f"{LANDING_ROOT}/{f}", f"{BRONZE_ROOT}/{f}", True)
+    dbutils.fs.cp(
+        f"{LANDING_ROOT}/{f}",
+        f"{BRONZE_ROOT}/{f}",
+        recurse=True
+    )
 
-print("Bronze files:", [x.path for x in dbutils.fs.ls(BRONZE_ROOT)])
+display(dbutils.fs.ls(BRONZE_ROOT))
+print("JOB 1 DONE")
