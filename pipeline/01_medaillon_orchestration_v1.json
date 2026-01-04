@@ -1,0 +1,39 @@
+{
+	"name": "01_medaillon_orchestration_v1",
+	"properties": {
+		"activities": [
+			{
+				"name": "01_medaillon_orchestration",
+				"type": "DatabricksJob",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"jobId": "763040753268034",
+					"jobParameters": {
+						"env": {
+							"value": "@pipeline().parameters.env",
+							"type": "Expression"
+						},
+						"source": "opendata",
+						"entity": "caract_v1"
+					}
+				},
+				"linkedServiceName": {
+					"referenceName": "LS_Databricks_Workspace",
+					"type": "LinkedServiceReference"
+				}
+			}
+		],
+		"folder": {
+			"name": "01_orchestration"
+		},
+		"annotations": []
+	}
+}
