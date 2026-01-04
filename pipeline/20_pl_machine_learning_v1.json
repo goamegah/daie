@@ -1,0 +1,39 @@
+{
+	"name": "20_pl_machine_learning_v1",
+	"properties": {
+		"activities": [
+			{
+				"name": "20_machine_learning",
+				"type": "DatabricksJob",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"jobId": "90379370079060",
+					"jobParameters": {
+						"env": {
+							"value": "@pipeline().parameters.env",
+							"type": "Expression"
+						},
+						"source": "opendata",
+						"entity": "caract_v1"
+					}
+				},
+				"linkedServiceName": {
+					"referenceName": "LS_Databricks_Workspace",
+					"type": "LinkedServiceReference"
+				}
+			}
+		],
+		"folder": {
+			"name": "20_machine_learning"
+		},
+		"annotations": []
+	}
+}
